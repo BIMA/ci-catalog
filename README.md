@@ -10,20 +10,16 @@ and lineage.
 > approximation of GitLab's semantics (see [What it understands](#what-it-understands)),
 > not a substitute for GitLab's own pipeline evaluation.
 
-**[Live demo »](https://BIMA.github.io/ci-catalog/)** — loads a sample Java +
+**[Live demo »](https://bima.github.io/ci-catalog/)** — loads a sample Java +
 Kubernetes pipeline; switch ref contexts, click jobs, explore lineage.
+
+[![CI Catalog — DAG view with job drawer: lineage, scripts, run conditions](ci-catalog-preview.png)](https://bima.github.io/ci-catalog/)
 
 Two ways to use it, like dbt:
 
 - **Generate a catalog** from a project of templates, then open the static
   output — the recommended flow for a repo of pipelines (see below).
 - **Ad-hoc** — run the dev server and paste/open/fetch a single pipeline.
-
-> Update the demo link above to your Pages URL. To host it: push to GitHub,
-> then **Settings → Pages → Source: GitHub Actions**. The included
-> [`deploy-pages`](.github/workflows/deploy-pages.yml) workflow builds and
-> publishes `dist/` on every push to `main`. With no catalog present the hosted
-> build auto-loads the sample pipeline.
 
 ## Generate a catalog (dbt-docs style)
 
@@ -96,6 +92,8 @@ drawn dashed with a "conditional" badge. The default-branch context matches
 `main` *and* `master` (union), since templates target both.
 
 ## Explore
+
+![Clicking through jobs, lineage highlighting, and ref-context tabs](ci-catalog-gif.gif)
 
 - Click a job (graph or sidebar) → detail drawer: overview, direct +
   transitive lineage (clickable), execution context, scripts, run conditions,
