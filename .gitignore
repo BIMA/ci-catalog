@@ -1,0 +1,8 @@
+node_modules/
+dist/
+pipeline-docs/
+.DS_Store
+.idea/
+
+# local dev template snapshots — never publish real internal CI config
+starters/

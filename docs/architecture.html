@@ -1,0 +1,262 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Pipeline Composer — Architecture</title>
+    <style>
+      :root {
+        --paper: #eef1f3;
+        --grid: #e0e5e9;
+        --surface: #fafbfc;
+        --ink: #182430;
+        --ink-soft: #5e6e7b;
+        --ink-faint: #93a1ac;
+        --line: #c7d1d9;
+        --line-strong: #9fadb8;
+        --accent: #e24329;
+        --up: #0e7c7b;
+        --down: #4756c8;
+        --hold: #8a63c9;
+        --mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+        --sans: "Inter", system-ui, -apple-system, sans-serif;
+      }
+      * { box-sizing: border-box; margin: 0; }
+      body {
+        font-family: var(--sans);
+        color: var(--ink);
+        background: var(--paper);
+        background-image:
+          linear-gradient(var(--grid) 1px, transparent 1px),
+          linear-gradient(90deg, var(--grid) 1px, transparent 1px);
+        background-size: 26px 26px;
+        padding: 32px 24px 64px;
+        line-height: 1.5;
+      }
+      header {
+        max-width: 1080px;
+        margin: 0 auto 28px;
+        display: flex;
+        align-items: baseline;
+        gap: 12px;
+        flex-wrap: wrap;
+      }
+      .mark {
+        width: 15px; height: 15px; align-self: center;
+        background: var(--accent);
+        clip-path: polygon(50% 0, 100% 62%, 82% 100%, 18% 100%, 0 62%);
+      }
+      h1 { font-size: 19px; letter-spacing: 0.02em; }
+      .sub { font-family: var(--mono); font-size: 12px; color: var(--ink-faint); }
+      .board {
+        max-width: 1080px;
+        margin: 0 auto;
+        background: rgb(250 251 252 / 0.7);
+        border: 1px solid var(--line);
+        border-radius: 12px;
+        padding: 22px;
+      }
+      .lane {
+        display: grid;
+        grid-template-columns: 118px 1fr;
+        gap: 16px;
+        align-items: center;
+        padding: 16px 0;
+      }
+      .lane + .lane { border-top: 1px dashed var(--line); }
+      .lane-label {
+        font-family: var(--mono);
+        font-size: 10.5px;
+        text-transform: uppercase;
+        letter-spacing: 0.12em;
+        color: var(--ink-soft);
+        text-align: right;
+      }
+      .lane-label small {
+        display: block;
+        color: var(--ink-faint);
+        letter-spacing: 0.02em;
+        text-transform: none;
+        margin-top: 3px;
+      }
+      .row { display: flex; flex-wrap: wrap; gap: 12px; align-items: stretch; }
+      .box {
+        background: var(--surface);
+        border: 1.4px solid var(--line-strong);
+        border-radius: 8px;
+        padding: 10px 12px;
+        min-width: 150px;
+        flex: 1;
+        box-shadow: 0 1px 2px rgb(24 36 48 / 0.08);
+      }
+      .box.wide { flex-basis: 100%; }
+      .box .name { font-family: var(--mono); font-size: 13px; font-weight: 600; }
+      .box .file { font-family: var(--mono); font-size: 10.5px; color: var(--accent); margin-top: 1px; }
+      .box .desc { font-size: 11.5px; color: var(--ink-soft); margin-top: 6px; }
+      .box .desc code { font-family: var(--mono); font-size: 10.5px; background: var(--paper); padding: 0 3px; border-radius: 3px; }
+      .box.accent { border-color: var(--accent); }
+      .box.dashed { border-style: dashed; }
+      .flow {
+        text-align: center;
+        font-family: var(--mono);
+        font-size: 20px;
+        color: var(--line-strong);
+        padding: 2px 0;
+        grid-column: 2;
+      }
+      .tag {
+        display: inline-block;
+        font-family: var(--mono);
+        font-size: 9.5px;
+        border: 1px solid var(--line);
+        border-radius: 4px;
+        padding: 1px 5px;
+        color: var(--ink-faint);
+        margin: 4px 4px 0 0;
+      }
+      .tag.up { color: var(--up); border-color: var(--up); }
+      .tag.down { color: var(--down); border-color: var(--down); }
+      .tag.hold { color: var(--hold); border-color: var(--hold); }
+      .legend {
+        max-width: 1080px;
+        margin: 20px auto 0;
+        font-size: 11.5px;
+        color: var(--ink-soft);
+        display: flex;
+        flex-wrap: wrap;
+        gap: 18px;
+      }
+      .legend b { color: var(--ink); font-weight: 600; }
+      .note { font-size: 11.5px; color: var(--ink-faint); margin-top: 6px; }
+    </style>
+  </head>
+  <body>
+    <header>
+      <span class="mark" aria-hidden="true"></span>
+      <h1>Pipeline Composer</h1>
+      <span class="sub">architecture · data flow · Vite + vanilla JS, no graph lib</span>
+    </header>
+
+    <div class="board">
+      <!-- SOURCES -->
+      <div class="lane">
+        <div class="lane-label">Sources<small>load YAML text</small></div>
+        <div class="row">
+          <div class="box">
+            <div class="name">Sample</div>
+            <div class="file">sample.js</div>
+            <div class="desc">Built-in demo pipeline.</div>
+          </div>
+          <div class="box">
+            <div class="name">Starters</div>
+            <div class="file">starters.js</div>
+            <div class="desc">Local dev templates bundled via <code>import.meta.glob</code> (gitignored).</div>
+          </div>
+          <div class="box">
+            <div class="name">Paste / File</div>
+            <div class="file">index.html · main.js</div>
+            <div class="desc">Paste <code>.gitlab-ci.yml</code> or open local file.</div>
+          </div>
+          <div class="box">
+            <div class="name">GitLab API</div>
+            <div class="file">gitlab-api.js</div>
+            <div class="desc">Fetch CI config + latest pipeline job statuses. REST v4, token in memory only.</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="lane"><div></div><div class="flow">↓</div></div>
+
+      <!-- PARSE -->
+      <div class="lane">
+        <div class="lane-label">Parse<small>text → model</small></div>
+        <div class="row">
+          <div class="box accent wide">
+            <div class="name">parsePipeline()</div>
+            <div class="file">parser.js</div>
+            <div class="desc">
+              YAML → pipeline model (<code>stages</code>, <code>jobs</code> Map, <code>workflow</code>, warnings).
+              Resolves: <code>include: local</code> recursive + <code>inputs</code> ·
+              <code>spec: inputs</code> with <code>$[[ inputs.x ]]</code> ·
+              <code>!reference</code> tags · <code>extends</code> merge (hash deep, array replace) · anchors / <code>&lt;&lt;:</code> · <code>default</code>.
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="lane"><div></div><div class="flow">↓</div></div>
+
+      <!-- MODEL DERIVATION -->
+      <div class="lane">
+        <div class="lane-label">Derive<small>model → views</small></div>
+        <div class="row">
+          <div class="box">
+            <div class="name">buildGraph()</div>
+            <div class="file">graph.js</div>
+            <div class="desc">needs + stage-order edges → <code>upstream</code>/<code>downstream</code> maps, transitive <code>lineageOf()</code>.</div>
+            <span class="tag up">upstream</span><span class="tag down">downstream</span>
+          </div>
+          <div class="box">
+            <div class="name">filterModel()</div>
+            <div class="file">refs.js</div>
+            <div class="desc">Per-ref simulation. Tri-state <code>rules</code>/<code>only</code>/<code>except</code> eval + <code>formatCondition()</code> pretty-print.</div>
+            <span class="tag hold">MR · branch · tag · schedule</span>
+          </div>
+          <div class="box">
+            <div class="name">layoutPipeline()</div>
+            <div class="file">layout.js</div>
+            <div class="desc">Layered layout — stage lanes, barycenter crossing-reduction, orthogonal wires.</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="lane"><div></div><div class="flow">↓</div></div>
+
+      <!-- RENDER -->
+      <div class="lane">
+        <div class="lane-label">Render<small>views → DOM</small></div>
+        <div class="row">
+          <div class="box">
+            <div class="name">DagView</div>
+            <div class="file">render.js</div>
+            <div class="desc">SVG graph. Pan/zoom, node select, directional lineage highlight, verdict styling.</div>
+          </div>
+          <div class="box">
+            <div class="name">renderDrawer()</div>
+            <div class="file">drawer.js</div>
+            <div class="desc">Job detail: overview, lineage, scripts, run-condition cards, resolved YAML.</div>
+          </div>
+          <div class="box">
+            <div class="name">Sidebar + tabs</div>
+            <div class="file">main.js · style.css</div>
+            <div class="desc">Job list, filter, ref-context tabs, warnings, lineage legend.</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="lane"><div></div><div class="flow">↓</div></div>
+
+      <!-- ORCHESTRATOR -->
+      <div class="lane">
+        <div class="lane-label">State<small>wiring</small></div>
+        <div class="row">
+          <div class="box dashed wide">
+            <div class="name">main.js</div>
+            <div class="file">central state + event wiring</div>
+            <div class="desc">
+              Holds <code>fullModel</code> / current-context <code>model</code> / <code>graph</code> / <code>statuses</code> / <code>selected</code> / <code>refContext</code>.
+              <code>loadYaml()</code> → parse → <code>applyContext()</code> → rebuild graph + view. Routes source buttons, tabs, search, GitLab connect.
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="legend">
+      <span><b>Flow</b> Source → Parse → Derive → Render, orchestrated by main.js</span>
+      <span><b>No backend</b> — pure static, all parsing in browser</span>
+      <span><b>Deps</b> Vite (build), js-yaml (parse)</span>
+    </div>
+    <p class="legend note">Solid box = pure module · dashed = stateful orchestrator · orange file = source path. GitLab API is the only network I/O; everything else runs client-side.</p>
+  </body>
+</html>
