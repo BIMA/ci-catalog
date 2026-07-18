@@ -287,12 +287,12 @@ async function initCatalog() {
   let manifest;
   try {
     const res = await fetch("manifest.json", { cache: "no-store" });
-    if (!res.ok) return;
+    if (!res.ok) return false;
     manifest = await res.json();
   } catch {
-    return; // dev mode / no catalog — leave manual sources active
+    return false; // dev mode / no catalog — leave manual sources active
   }
-  if (!manifest || manifest.schemaVersion !== 1 || !Array.isArray(manifest.pipelines)) return;
+  if (!manifest || manifest.schemaVersion !== 1 || !Array.isArray(manifest.pipelines)) return false;
 
   const section = $("#catalog-section");
   section.hidden = false;
@@ -322,6 +322,12 @@ async function initCatalog() {
     select.value = String(firstOk);
     applyModel(deserializeModel(manifest.pipelines[firstOk].model), `${manifest.project}/${manifest.pipelines[firstOk].path}`);
   }
+  return true;
 }
 
-initCatalog();
+// In a production build with no catalog (e.g. the hosted demo), auto-load the
+// sample so the DAG is visible on arrival. Dev keeps the empty state so you can
+// paste your own config straight away.
+initCatalog().then((loaded) => {
+  if (!loaded && import.meta.env.PROD) loadYaml(SAMPLE_YAML, "Sample pipeline");
+});

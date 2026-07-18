@@ -1,124 +1,239 @@
-export const SAMPLE_YAML = `# Sample: realistic web-service pipeline
+export const SAMPLE_YAML = `# Sample: Java (Maven) microservice deployed to Kubernetes via Helm.
+# A generic, textbook pipeline — build, test, quality gates, containerize,
+# then progressive Helm rollouts across dev / staging / production.
 stages:
   - build
   - test
-  - security
+  - quality
   - package
   - deploy
+  - verify
 
 default:
-  image: node:20-alpine
+  image: maven:3.9-eclipse-temurin-21
   tags: [docker]
+  interruptible: true
 
 variables:
-  APP_NAME: storefront
+  APP_NAME: orders-api
+  MAVEN_OPTS: "-Dmaven.repo.local=.m2/repository -Dstyle.color=always"
+  HELM_CHART: ./deploy/chart
+  IMAGE: \${CI_REGISTRY_IMAGE}:\${CI_COMMIT_SHORT_SHA}
+
+# ---- reusable anchors -------------------------------------------------------
+
+.maven-cache: &maven-cache
+  key:
+    files: [pom.xml]
+  paths: [.m2/repository]
+  policy: pull
+
+# ---- reusable rule sets (hidden templates) ----------------------------------
 
 .rules-mr-and-main:
   rules:
     - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
-    - if: '$CI_COMMIT_BRANCH == "main"'
+    - if: '$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
 
-lint:
-  stage: .pre
+.rules-default-only:
+  rules:
+    - if: '$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
+
+.rules-release-tag:
+  rules:
+    - if: '$CI_COMMIT_TAG =~ /^v\\d+\\.\\d+\\.\\d+$/'
+
+# ---- reusable deploy template ------------------------------------------------
+
+.deploy:
+  image: alpine/helm:3.15
+  tags: [docker]
   script:
-    - npm ci
-    - npm run lint
+    - helm upgrade --install $APP_NAME $HELM_CHART
+      --namespace $KUBE_NAMESPACE --create-namespace
+      --set image.repository=$CI_REGISTRY_IMAGE
+      --set image.tag=$CI_COMMIT_SHORT_SHA
+      --wait --timeout 5m
+
+# ---- build ------------------------------------------------------------------
 
 compile:
   stage: build
   extends: .rules-mr-and-main
+  cache:
+    <<: *maven-cache
+    policy: pull-push
   script:
-    - npm ci
-    - npm run build
+    - mvn -B clean compile
   artifacts:
-    paths: [dist/]
-    expire_in: 1 week
+    paths: [target/classes]
+    expire_in: 1 day
 
-docs:
-  stage: build
-  script:
-    - npm run docs
-  artifacts:
-    paths: [public/docs]
-  when: manual
-  allow_failure: true
+# ---- test (fan-out from compile) --------------------------------------------
 
 unit-tests:
   stage: test
   needs: [compile]
-  parallel: 4
+  cache: *maven-cache
+  parallel:
+    matrix:
+      - JDK: ["17", "21"]
+  image: maven:3.9-eclipse-temurin-\${JDK}
   script:
-    - npm run test:unit -- --shard $CI_NODE_INDEX/$CI_NODE_TOTAL
-  coverage: '/Lines\\s*:\\s*(\\d+\\.?\\d*)%/'
+    - mvn -B test
+  coverage: '/Total.*?([0-9]{1,3})%/'
   artifacts:
     reports:
-      junit: junit.xml
+      junit: target/surefire-reports/TEST-*.xml
 
 integration-tests:
   stage: test
   needs: [compile]
+  cache: *maven-cache
   services:
-    - postgres:16
-    - redis:7
+    - name: postgres:16
+      alias: db
   variables:
-    DATABASE_URL: postgres://postgres@postgres/app_test
+    SPRING_DATASOURCE_URL: jdbc:postgresql://db:5432/orders
+    POSTGRES_DB: orders
+    POSTGRES_HOST_AUTH_METHOD: trust
   script:
-    - npm run test:integration
+    - mvn -B verify -Pintegration
+  artifacts:
+    reports:
+      junit: target/failsafe-reports/TEST-*.xml
 
-e2e-tests:
+contract-tests:
   stage: test
   needs: [compile]
-  image: mcr.microsoft.com/playwright:v1.44.0
+  cache: *maven-cache
   script:
-    - npx playwright test
+    - mvn -B test -Pcontracts
   allow_failure: true
 
+# ---- quality gates ----------------------------------------------------------
+
 sast:
-  stage: security
+  stage: quality
   needs: []
   script:
     - /analyzer run
 
 dependency-scan:
-  stage: security
+  stage: quality
   needs: [compile]
+  cache: *maven-cache
   script:
-    - npm audit --audit-level=high
+    - mvn -B org.owasp:dependency-check-maven:check
+
+sonarqube:
+  stage: quality
+  extends: .rules-mr-and-main
+  needs: [unit-tests, integration-tests]
+  cache: *maven-cache
+  script:
+    - mvn -B sonar:sonar -Dsonar.projectKey=$APP_NAME
+  allow_failure: true
+
+# ---- package (container image + helm chart) ---------------------------------
 
 docker-image:
   stage: package
-  needs: [unit-tests, integration-tests]
-  image: docker:26
-  services: [docker:26-dind]
+  needs: [unit-tests, integration-tests, dependency-scan]
+  image:
+    name: gcr.io/kaniko-project/executor:v1.23.0-debug
+    entrypoint: [""]
   script:
-    - docker build -t $CI_REGISTRY_IMAGE:$CI_COMMIT_SHA .
-    - docker push $CI_REGISTRY_IMAGE:$CI_COMMIT_SHA
+    - /kaniko/executor
+      --context $CI_PROJECT_DIR
+      --dockerfile $CI_PROJECT_DIR/Dockerfile
+      --destination $IMAGE
+      --destination $CI_REGISTRY_IMAGE:latest
+  rules:
+    - if: '$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
+    - if: '$CI_COMMIT_TAG =~ /^v\\d+\\.\\d+\\.\\d+$/'
 
-helm-chart:
+helm-package:
   stage: package
-  needs: [unit-tests]
-  image: alpine/helm:3
+  needs: [contract-tests]
+  image: alpine/helm:3.15
   script:
-    - helm package chart/ --version 0.1.0-$CI_COMMIT_SHORT_SHA
+    - helm lint $HELM_CHART
+    - helm package $HELM_CHART --version 0.1.0-$CI_COMMIT_SHORT_SHA
+  artifacts:
+    paths: ["*.tgz"]
+
+# ---- deploy (progressive: dev -> staging -> production) ---------------------
+
+deploy-dev:
+  extends: .deploy
+  stage: deploy
+  needs: [docker-image, helm-package]
+  variables:
+    KUBE_NAMESPACE: orders-dev
+  environment:
+    name: dev
+    url: https://dev.orders.example.com
+  rules:
+    - if: '$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
 
 deploy-staging:
+  extends: .deploy
   stage: deploy
-  needs: [docker-image, helm-chart, dependency-scan]
-  environment: staging
-  script:
-    - helm upgrade --install $APP_NAME ./chart -n staging
+  needs: [deploy-dev]
+  variables:
+    KUBE_NAMESPACE: orders-staging
+  environment:
+    name: staging
+    url: https://staging.orders.example.com
+  rules:
+    - if: '$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
+      when: manual
 
 deploy-production:
+  extends: [.deploy, .rules-release-tag]
   stage: deploy
-  needs: [docker-image, helm-chart]
-  environment: production
-  when: manual
+  needs: [docker-image, helm-package]
+  variables:
+    KUBE_NAMESPACE: orders-prod
+  environment:
+    name: production
+    url: https://orders.example.com
   resource_group: production
+
+# ---- verify -----------------------------------------------------------------
+
+smoke-test:
+  stage: verify
+  needs: [deploy-staging]
+  image: curlimages/curl:8.8.0
   script:
-    - helm upgrade --install $APP_NAME ./chart -n production
+    - curl -sf https://staging.orders.example.com/actuator/health
+
+# Downstream end-to-end suite lives in its own project; trigger it after
+# staging is live (cross-pipeline — drawn as a boundary, not an edge).
+e2e-downstream:
+  stage: verify
+  needs: [deploy-staging]
+  trigger:
+    project: qa/orders-e2e
+    branch: main
+    strategy: depend
+
+nightly-load-test:
+  stage: verify
+  image: grafana/k6:0.51.0
+  script:
+    - k6 run load/smoke.js
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "schedule"'
+
+# ---- housekeeping -----------------------------------------------------------
 
 notify:
   stage: .post
+  image: curlimages/curl:8.8.0
   script:
-    - ./scripts/notify-slack.sh "$CI_PIPELINE_STATUS"
+    - curl -sf -X POST "$SLACK_WEBHOOK" -d "{\\"text\\":\\"$APP_NAME $CI_PIPELINE_STATUS\\"}"
+  when: always
 `;
