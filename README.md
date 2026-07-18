@@ -1,4 +1,4 @@
-# Pipeline Composer — GitLab CI DAG Viewer
+# CI Catalog — GitLab CI DAG Viewer
 
 A dbt-Catalog-style explorer for GitLab CI/CD pipelines: load a `.gitlab-ci.yml`
 and get an interactive dependency graph with per-job metadata, documentation,
