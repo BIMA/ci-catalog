@@ -103,11 +103,8 @@ function main() {
   };
 
   if (args.build) {
-    const distIndex = join(repoRoot, "dist", "index.html");
-    if (!existsSync(distIndex)) {
-      console.log("Building viewer (vite build)…");
-      execFileSync("npm", ["run", "build"], { cwd: repoRoot, stdio: "inherit" });
-    }
+    console.log("Building viewer (vite build)…");
+    execFileSync("npm", ["run", "build"], { cwd: repoRoot, stdio: "inherit" });
   }
 
   const outDir = args.out;

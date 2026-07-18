@@ -271,6 +271,41 @@ $("#connect-dialog").addEventListener("close", async () => {
   }
 });
 
+// ---- drawer resize (drag left edge) ----
+{
+  const DRAWER_W_KEY = "ci-catalog:drawer-width";
+  const clampWidth = (w) => Math.min(Math.max(w, 300), Math.floor(window.innerWidth * 0.9));
+  // Restore without clamping to innerWidth (0 when the tab loads in the
+  // background); CSS max-width: 90vw caps oversized values.
+  const saved = Number(localStorage.getItem(DRAWER_W_KEY));
+  if (saved >= 300) {
+    document.documentElement.style.setProperty("--drawer-w", `${saved}px`);
+  }
+  const resizer = $("#drawer-resizer");
+  resizer.addEventListener("pointerdown", (ev) => {
+    ev.preventDefault();
+    resizer.setPointerCapture(ev.pointerId);
+    resizer.classList.add("dragging");
+    document.body.classList.add("drawer-resizing");
+    let width = null;
+    const onMove = (mv) => {
+      width = clampWidth(window.innerWidth - mv.clientX);
+      document.documentElement.style.setProperty("--drawer-w", `${width}px`);
+    };
+    const onUp = () => {
+      resizer.classList.remove("dragging");
+      document.body.classList.remove("drawer-resizing");
+      resizer.removeEventListener("pointermove", onMove);
+      resizer.removeEventListener("pointerup", onUp);
+      resizer.removeEventListener("pointercancel", onUp);
+      if (width) localStorage.setItem(DRAWER_W_KEY, String(width));
+    };
+    resizer.addEventListener("pointermove", onMove);
+    resizer.addEventListener("pointerup", onUp);
+    resizer.addEventListener("pointercancel", onUp);
+  });
+}
+
 document.addEventListener("keydown", (ev) => {
   if (ev.key === "Escape" && state.selected) selectJob(null);
   if (ev.key === "/" && document.activeElement?.tagName !== "INPUT" && document.activeElement?.tagName !== "TEXTAREA") {
