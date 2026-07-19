@@ -1,14 +1,48 @@
 {
   "name": "ci-catalog",
-  "private": true,
-  "version": "0.1.0",
+  "version": "0.2.0",
+  "description": "dbt-docs-style catalog generator and DAG viewer for GitLab CI/CD pipelines: parse a repo of templates into a static, browsable manifest with per-ref run simulation.",
   "license": "MIT",
   "type": "module",
+  "bin": {
+    "ci-catalog": "bin/generate.mjs"
+  },
+  "files": [
+    "bin",
+    "src",
+    "dist",
+    "index.html",
+    "vite.config.js"
+  ],
+  "engines": {
+    "node": ">=18"
+  },
+  "keywords": [
+    "gitlab",
+    "gitlab-ci",
+    "ci-cd",
+    "pipeline",
+    "dag",
+    "visualization",
+    "docs",
+    "catalog"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/BIMA/ci-catalog.git"
+  },
+  "homepage": "https://bima.github.io/ci-catalog/",
+  "bugs": {
+    "url": "https://github.com/BIMA/ci-catalog/issues"
+  },
   "scripts": {
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
-    "docs:generate": "node bin/generate.mjs"
+    "test": "node --test \"test/*.test.mjs\"",
+    "test:oracle": "node test/oracle.mjs",
+    "docs:generate": "node bin/generate.mjs",
+    "prepublishOnly": "npm test && npm run build"
   },
   "dependencies": {
     "js-yaml": "^4.1.0"

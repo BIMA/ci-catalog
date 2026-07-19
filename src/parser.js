@@ -135,12 +135,51 @@ function normalizeIncludes(include) {
 }
 
 /**
+ * Canonical `files` map keys for non-local includes, so a generator can
+ * pre-fetch them and the parser resolves them like local files:
+ *   project://<project>@<ref>/<file>   (ref defaults to HEAD)
+ *   template://<name>
+ *   component://<address>              (address includes @version)
+ *   remote://<url>
+ * Returns [{key, inputs, describe}] — one per file for `project:` includes.
+ */
+export function includeKeys(entry) {
+  const inputs = entry.inputs ?? {};
+  if (entry.project) {
+    const ref = String(entry.ref ?? "HEAD");
+    const files = Array.isArray(entry.file) ? entry.file : [entry.file];
+    return files.filter(Boolean).map((f) => {
+      const file = String(f).replace(/^\/+/, "");
+      return {
+        key: `project://${entry.project}@${ref}/${file}`,
+        kind: "project",
+        project: String(entry.project),
+        ref,
+        file,
+        inputs,
+        describe: `project ${entry.project} file ${f}`,
+      };
+    });
+  }
+  if (entry.template) {
+    return [{ key: `template://${entry.template}`, kind: "template", name: String(entry.template), inputs, describe: `template ${entry.template}` }];
+  }
+  if (entry.component) {
+    return [{ key: `component://${entry.component}`, kind: "component", address: String(entry.component), inputs, describe: `component ${entry.component}` }];
+  }
+  if (entry.remote) {
+    return [{ key: `remote://${entry.remote}`, kind: "remote", url: String(entry.remote), inputs, describe: `remote ${entry.remote}` }];
+  }
+  return [];
+}
+
+/**
  * Load one file's text into a single merged doc:
  * multi-doc `spec:` headers are applied (inputs interpolated), then its own
  * `include:` entries are resolved recursively and merged (includes first,
  * file body last — the includer wins on conflicts, like GitLab).
  */
-function resolveText(text, files, { path = "(input)", inputs = {}, stack = [], warnings }) {
+function resolveText(text, files, { path = "(input)", inputs = {}, stack = [], warnings, unresolved = [] }) {
   let docs;
   try {
     docs = loadDocs(text);
@@ -181,16 +220,38 @@ function resolveText(text, files, { path = "(input)", inputs = {}, stack = [], w
         warnings.push(`include \`${target}\` not found in loaded file set.`);
         continue;
       }
+      if (entry.rules) {
+        warnings.push(`include \`${target}\` is gated by rules — included anyway (the catalog shows all possible jobs).`);
+      }
       const sub = resolveText(files[target], files, {
         path: target,
         inputs: entry.inputs ?? {},
         stack: [...stack, key],
         warnings,
+        unresolved,
       });
       acc = mergeGitlab(acc, sub);
-    } else {
-      const kind = entry.template ? `template ${entry.template}` : entry.project ? `project ${entry.project}` : entry.component ? `component ${entry.component}` : entry.remote ? `remote` : "unknown";
-      warnings.push(`include (${kind}) not resolved — jobs from it are missing.`);
+      continue;
+    }
+    for (const inc of includeKeys(entry)) {
+      const stackKey = `${inc.key}::${JSON.stringify(inc.inputs)}`;
+      if (stack.includes(stackKey)) {
+        warnings.push(`Circular include: ${inc.describe}`);
+        continue;
+      }
+      if (inc.key in files) {
+        const sub = resolveText(files[inc.key], files, {
+          path: inc.key,
+          inputs: inc.inputs,
+          stack: [...stack, stackKey],
+          warnings,
+          unresolved,
+        });
+        acc = mergeGitlab(acc, sub);
+      } else {
+        unresolved.push(inc);
+        warnings.push(`include (${inc.describe}) not resolved — jobs from it are missing.`);
+      }
     }
   }
   const own = { ...body };
@@ -238,7 +299,9 @@ function resolveExtends(name, rawJobs, seen = []) {
 function normalizeNeeds(needs) {
   // Returns { list: [{job, optional, artifacts, external}], startsImmediately }
   if (needs === undefined) return { list: null, startsImmediately: false };
-  const arr = Array.isArray(needs) ? needs : [needs];
+  // A `!reference` spliced into needs can appear as a nested list (GitLab's
+  // merged_yaml serializes it that way) — flatten before normalizing.
+  const arr = (Array.isArray(needs) ? needs : [needs]).flat(2);
   if (arr.length === 0) return { list: [], startsImmediately: true };
   const list = [];
   for (const n of arr) {
@@ -285,9 +348,12 @@ function describeParallel(parallel) {
  */
 export function parsePipeline(text, { files = {}, path = "(input)" } = {}) {
   const warnings = [];
-  let doc = resolveText(text, files, { path, warnings });
+  const unresolved = [];
+  let doc = resolveText(text, files, { path, warnings, unresolved });
   if (!isObject(doc) || Object.keys(doc).length === 0) {
-    throw new Error("YAML root must be a mapping with content (empty or non-mapping document).");
+    const err = new Error("YAML root must be a mapping with content (empty or non-mapping document).");
+    err.unresolved = unresolved;
+    throw err;
   }
   doc = resolveReferences(doc, warnings);
 
@@ -371,7 +437,9 @@ export function parsePipeline(text, { files = {}, path = "(input)" } = {}) {
   }
 
   if (jobs.size === 0) {
-    throw new Error("No jobs found. Hidden jobs (names starting with '.') are templates and never run.");
+    const err = new Error("No jobs found. Hidden jobs (names starting with '.') are templates and never run.");
+    err.unresolved = unresolved;
+    throw err;
   }
 
   // Stage order: .pre, declared stages, .post; then only keep non-empty,
@@ -397,7 +465,7 @@ export function parsePipeline(text, { files = {}, path = "(input)" } = {}) {
     }
   }
 
-  return { stages, jobs, templates, warnings, workflow: isObject(doc.workflow) ? doc.workflow : null };
+  return { stages, jobs, templates, warnings, unresolved, workflow: isObject(doc.workflow) ? doc.workflow : null };
 }
 
 export function dumpJobYaml(job) {

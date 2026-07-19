@@ -1,6 +1,7 @@
 node_modules/
 dist/
 pipeline-docs/
+.oracle/
 .DS_Store
 .idea/
 
