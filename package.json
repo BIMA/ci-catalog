@@ -45,7 +45,7 @@
     "prepublishOnly": "npm test && npm run build"
   },
   "dependencies": {
-    "js-yaml": "^4.1.0"
+    "js-yaml": "^5.2.1"
   },
   "devDependencies": {
     "vite": "^7.3.6"
