@@ -90,7 +90,10 @@ function resolveReferences(doc, warnings) {
     }
     if (isObject(node)) {
       const out = {};
-      for (const [k, v] of Object.entries(node)) out[k] = walk(v, depth);
+      for (const [k, v] of Object.entries(node)) {
+        if (UNSAFE_KEYS.has(k)) continue;
+        out[k] = walk(v, depth);
+      }
       return out;
     }
     return node;
@@ -194,6 +197,7 @@ function resolveText(text, files, { path = "(input)", inputs = {}, stack = [], w
     const spec = docs[0].spec;
     const merged = { ...inputs };
     for (const [name, def] of Object.entries(spec.inputs ?? {})) {
+      if (UNSAFE_KEYS.has(name)) continue;
       if (merged[name] === undefined && isObject(def) && def.default !== undefined) {
         merged[name] = def.default;
       }
@@ -259,6 +263,10 @@ function resolveText(text, files, { path = "(input)", inputs = {}, stack = [], w
   return mergeGitlab(acc, own);
 }
 
+// Keys that would hit the prototype chain instead of becoming plain data
+// properties when assigned with `out[k] = v` on YAML-controlled input.
+const UNSAFE_KEYS = new Set(["__proto__", "constructor", "prototype"]);
+
 // GitLab extends-merge: hashes merge deeply, everything else (arrays,
 // scalars) is replaced by the child value.
 function mergeGitlab(base, child) {
@@ -266,6 +274,7 @@ function mergeGitlab(base, child) {
   if (!isObject(base) || !isObject(child)) return child;
   const out = { ...base };
   for (const [k, v] of Object.entries(child)) {
+    if (UNSAFE_KEYS.has(k)) continue;
     out[k] = k in base ? mergeGitlab(base[k], v) : v;
   }
   return out;
@@ -365,7 +374,7 @@ export function parsePipeline(text, { files = {}, path = "(input)" } = {}) {
 
   const rawJobs = {};
   for (const [key, val] of Object.entries(doc)) {
-    if (RESERVED_KEYS.has(key)) continue;
+    if (RESERVED_KEYS.has(key) || UNSAFE_KEYS.has(key)) continue;
     if (!isObject(val)) {
       if (!key.startsWith(".")) warnings.push(`Ignored top-level key \`${key}\` (not a job mapping).`);
       continue;

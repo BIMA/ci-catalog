@@ -40,7 +40,9 @@ npx serve pipeline-docs                          # open the catalog
 Non-local includes are fetched at generate time and resolved into the graph:
 
 - `include: project` — via the GitLab API (`--gitlab-url`, defaults to
-  `$CI_SERVER_URL` or gitlab.com; set `GITLAB_TOKEN` for private projects)
+  `$CI_SERVER_URL` or gitlab.com; set `GITLAB_TOKEN` for private projects —
+  the token is only ever sent to the configured GitLab host, never to hosts
+  named inside the YAML being cataloged)
 - `include: component` — CI/CD catalog components, including `@~latest`
 - `include: template` — GitLab's bundled templates
 - `include: remote` — plain HTTP

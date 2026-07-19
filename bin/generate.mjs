@@ -98,6 +98,14 @@ async function gitlabRaw(gitlabUrl, projectPath, file, ref, token) {
   return res.text();
 }
 
+function sameHost(a, b) {
+  try {
+    return new URL(a).host === new URL(b).host;
+  } catch {
+    return false;
+  }
+}
+
 async function resolveComponentVersion(gitlabUrl, projectPath, version, token) {
   // `~latest` → the project's latest release tag; anything else is used as a
   // ref directly (tag, branch, sha, or shorthand the instance can resolve).
@@ -138,12 +146,15 @@ async function fetchInclude(inc, { gitlabUrl, token }) {
     if (!m) throw new Error(`bad component address: ${inc.address}`);
     const [, host, project, component, version] = m;
     const base = `https://${host}`;
-    const ref = await resolveComponentVersion(base, project, version, token);
+    // The host comes from the YAML being cataloged — only send GITLAB_TOKEN
+    // to the configured GitLab instance, never to an address the config chose.
+    const hostToken = sameHost(base, gitlabUrl) ? token : null;
+    const ref = await resolveComponentVersion(base, project, version, hostToken);
     // components live at templates/<name>.yml or templates/<name>/template.yml
     try {
-      return await gitlabRaw(base, project, `templates/${component}.yml`, ref, token);
+      return await gitlabRaw(base, project, `templates/${component}.yml`, ref, hostToken);
     } catch {
-      return gitlabRaw(base, project, `templates/${component}/template.yml`, ref, token);
+      return gitlabRaw(base, project, `templates/${component}/template.yml`, ref, hostToken);
     }
   }
   throw new Error(`unknown include kind: ${inc.kind}`);

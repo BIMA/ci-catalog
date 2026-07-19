@@ -311,6 +311,24 @@ job: {script: [x]}
   assert.ok(Array.isArray(m.workflow.rules));
 });
 
+test("__proto__ keys in YAML never touch prototypes", () => {
+  const m = parse(`
+".base":
+  variables: {A: "1"}
+"__proto__": {polluted: "yes"}
+job:
+  extends: .base
+  "__proto__": {alsoPolluted: "yes"}
+  script: [x]
+`);
+  assert.equal({}.polluted, undefined);
+  assert.equal(Object.prototype.alsoPolluted, undefined);
+  const job = m.jobs.get("job");
+  assert.equal(job.polluted, undefined);
+  assert.equal(job.alsoPolluted, undefined);
+  assert.ok(!m.jobs.has("__proto__"));
+});
+
 test("parallel matrix counts combinations", () => {
   const m = parse(`
 job:
