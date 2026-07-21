@@ -1,6 +1,7 @@
-# Claim: a job redefined in the main file wins over the same job from an
-# include. Recorded with the current deep-merge behavior — ADR-0002 marks this
-# as the case commit B must flip to GitLab's real include-override semantics.
+# Claim: a job redefined in the main file deep-merges over the same job from
+# an include — override keys win, sibling keys from the include survive.
+# Oracle-verified GitLab-exact 2026-07-21 (see test/include-merge-probe.mjs
+# and the ADR-0002 amendment).
 include:
   - local: lib/base.yml
 build:

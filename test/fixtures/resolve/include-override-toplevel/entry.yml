@@ -1,5 +1,6 @@
-# Claim: top-level keys (variables, default) in the main file override the
-# same keys from an include. Recorded with current deep-merge behavior.
+# Claim: top-level hashes (variables, default) deep-merge — main-file keys
+# win per key, sibling keys from the include survive. Oracle-verified
+# GitLab-exact 2026-07-21 (see test/include-merge-probe2.mjs and ADR-0002).
 include:
   - local: lib/globals.yml
 variables:

@@ -20,9 +20,11 @@ function deepMerge(base, child) {
 // `extends:` chains — GitLab documents this as a reverse deep merge.
 export const mergeExtends = deepMerge;
 
-// `include:` accumulation and the includer-wins final merge. Known divergence
-// from GitLab (main file overrides included top-level keys) — fixing this is
-// the reason this site has its own name.
+// `include:` accumulation and the includer-wins final merge. Oracle-verified
+// GitLab-exact (2026-07-21, CI Lint probes against a real instance): GitLab
+// deep-merges includes at the job level, top-level `variables`, and
+// `default` — sibling keys from the include survive a main-file override.
+// See test/include-merge-probe.mjs and ADR-0002.
 export const mergeInclude = deepMerge;
 
 // Multiple YAML documents in one file (with or without a `spec:` header).
