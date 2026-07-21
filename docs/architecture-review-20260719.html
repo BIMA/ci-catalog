@@ -1,0 +1,262 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>CI Catalog — Architecture Review</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script type="module">
+  import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs';
+  mermaid.initialize({ startOnLoad: true, theme: 'dark', themeVariables: { fontFamily: 'ui-monospace, monospace', fontSize: '13px' } });
+</script>
+<style>
+  body { background:#0b0f14; color:#dbe4ee; font-family: ui-sans-serif, system-ui, sans-serif; }
+  .mono { font-family: ui-monospace, SFMono-Regular, monospace; }
+  .card { background:#111823; border:1px solid #1e2a3a; border-radius:14px; }
+  .badge-strong { background:#0d3321; color:#4ade80; border:1px solid #14532d; }
+  .badge-explore { background:#2b2410; color:#facc15; border:1px solid #713f12; }
+  .badge-spec { background:#251320; color:#e879f9; border:1px solid #701a75; }
+  .mod { border-radius:8px; overflow:hidden; border:1px solid #2a3a50; }
+  .iface { background:#f59e0b22; border-bottom:2px solid #f59e0b; color:#fbbf24; font-size:11px; padding:4px 8px; }
+  .impl { background:#0e1620; color:#7f97b2; font-size:11px; padding:8px; }
+  .arrow { color:#5b7a9d; font-size:22px; }
+  h2 { letter-spacing:-0.02em; }
+  .filechip { background:#0e1620; border:1px solid #24344a; border-radius:6px; padding:2px 8px; font-size:11px; color:#9fb6d0; }
+  .callout { background:#12202e; border-left:3px solid #38bdf8; }
+</style>
+</head>
+<body class="max-w-5xl mx-auto px-6 py-10">
+
+<header class="mb-10">
+  <p class="mono text-xs text-sky-400 uppercase tracking-widest mb-2">Architecture review · 2026-07-19</p>
+  <h1 class="text-3xl font-bold text-white">CI Catalog — deepening opportunities</h1>
+  <p class="mt-3 text-slate-400 max-w-3xl">Five candidates, ordered by leverage. Vocabulary: <span class="text-amber-300">interface</span> = everything a caller must know; a module is <span class="text-emerald-300">deep</span> when lots of behaviour hides behind a small interface. Candidates 1–3 line up with the locked roadmap (merge-fix → Scenario Profiles → Manifest Diff) and <b>support</b> ADR-0001/0002 — no ADR conflicts anywhere.</p>
+</header>
+
+<!-- ══════════════ CANDIDATE 1 ══════════════ -->
+<section class="card p-6 mb-8">
+  <div class="flex items-start justify-between gap-4">
+    <h2 class="text-xl font-semibold text-white">1 · Deepen Static Resolution into one guarded pipeline</h2>
+    <span class="badge-strong text-xs font-bold px-3 py-1 rounded-full whitespace-nowrap">Strong</span>
+  </div>
+  <div class="flex gap-2 mt-3 flex-wrap">
+    <span class="filechip mono">src/parser.js (482)</span>
+    <span class="filechip mono">bin/generate.mjs:173</span>
+  </div>
+
+  <h3 class="mt-5 text-sm font-bold text-sky-300 uppercase tracking-wide">Problem</h3>
+  <p class="mt-1 text-sm text-slate-300">Static Resolution — the layer ADR-0002 demands be <i>exact</i> — is a fixed but <b>implicit</b> pipeline: include-merge → <span class="mono">!reference</span> → extends → defaults, hard-coded inside <span class="mono">parsePipeline</span> (lines 361/367/400/407) with nothing enforcing the order. One merge primitive, <span class="mono">mergeGitlab</span> (272–281), is overloaded for three unrelated jobs: extends-merge, include-merge, and multi-doc <span class="mono">spec:</span> merge. The roadmap's first task — fix include-merge to GitLab's "main file overrides included top-level keys" rule — must change include-merge <b>without</b> touching extends-merge semantics. With one shared primitive, that fix has no locality: it lands in the blast radius of everything. Error reporting leaks past the interface too: <span class="mono">warnings</span>/<span class="mono">unresolved</span> accumulate by reference-threading side effects, and on failure the unresolved list rides an out-of-band <span class="mono">Error.unresolved</span> property that <span class="mono">generate.mjs:173</span> must simply know about.</p>
+
+  <h3 class="mt-4 text-sm font-bold text-sky-300 uppercase tracking-wide">Solution</h3>
+  <p class="mt-1 text-sm text-slate-300">Keep the small external interface (one resolve call), but restructure the implementation around <b>internal seams per phase</b>: separate merge primitives for include-merge vs extends-merge vs spec-merge, an explicit ordered phase list, and results (model + warnings + unresolved) returned as values instead of side-effect accumulation and thrown-error side channels. The oracle harness becomes the CI gate at the external seam.</p>
+
+  <h3 class="mt-4 text-sm font-bold text-sky-300 uppercase tracking-wide">Benefits</h3>
+  <p class="mt-1 text-sm text-slate-300"><b>Locality:</b> the ADR-0002 merge fix becomes an edit to one primitive with its own tests — extends/spec provably untouched. <b>Leverage:</b> callers (generator, viewer, oracle, tests) keep a one-function interface while gaining a value-typed error contract. <b>Tests:</b> each phase gets unit tests at its internal seam; the existing 342-line parser suite keeps guarding the external one.</p>
+
+  <div class="grid md:grid-cols-2 gap-4 mt-5">
+    <div>
+      <p class="text-xs mono text-rose-400 mb-2">BEFORE — one primitive, three masters, implicit order</p>
+      <pre class="mermaid">
+flowchart TD
+  A[resolveText<br/>includes] --> M
+  B[resolveExtends] --> M
+  C[multi-doc spec] --> M
+  M[[mergeGitlab<br/>one shared primitive]]
+  A -. side-effect .-> W[(warnings/unresolved<br/>by reference)]
+  P[parsePipeline<br/>hard-coded order] --> A
+  P --> B
+  P -->|throw Error.unresolved| G[generate.mjs]
+  style M fill:#3b1219,stroke:#e11d48
+  style W fill:#3b1219,stroke:#e11d48
+      </pre>
+    </div>
+    <div>
+      <p class="text-xs mono text-emerald-400 mb-2">AFTER — one deep module, phase seams inside</p>
+      <div class="mod">
+        <div class="iface mono">resolve(text, files) → { model, warnings, unresolved }</div>
+        <div class="impl">
+          <div class="grid grid-cols-4 gap-1 text-center">
+            <div class="border border-slate-700 rounded p-1">mergeInclude<br/><span class="text-emerald-400">GitLab-exact</span></div>
+            <div class="border border-slate-700 rounded p-1">!reference<br/>walker</div>
+            <div class="border border-slate-700 rounded p-1">mergeExtends</div>
+            <div class="border border-slate-700 rounded p-1">mergeSpec</div>
+          </div>
+          <div class="mt-2 text-center text-slate-500">explicit ordered phases · each an internal seam with unit tests · oracle gates the external interface</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ══════════════ CANDIDATE 2 ══════════════ -->
+<section class="card p-6 mb-8">
+  <div class="flex items-start justify-between gap-4">
+    <h2 class="text-xl font-semibold text-white">2 · Gather Simulation behind one seam (before Scenario Profiles land)</h2>
+    <span class="badge-strong text-xs font-bold px-3 py-1 rounded-full whitespace-nowrap">Strong</span>
+  </div>
+  <div class="flex gap-2 mt-3 flex-wrap">
+    <span class="filechip mono">src/refs.js (417)</span>
+    <span class="filechip mono">src/main.js:59–83</span>
+    <span class="filechip mono">src/render.js:136,156</span>
+    <span class="filechip mono">src/drawer.js:3</span>
+  </div>
+
+  <h3 class="mt-5 text-sm font-bold text-sky-300 uppercase tracking-wide">Problem</h3>
+  <p class="mt-1 text-sm text-slate-300">The verdict — Simulation's core output — is smeared across three files via two mechanisms: job verdicts computed in <span class="mono">refs.js</span>, rendered as node badges in <span class="mono">render.js</span>; the sibling <b>workflow</b> verdict from the same <span class="mono">filterModel</span> call rendered as prose in <span class="mono">main.js:76–83</span>. Meanwhile <span class="mono">formatCondition</span> — pure presentation — is parked in the evaluator because it wants <span class="mono">tokenize()</span>. Roadmap task #2 adds user-defined Scenario Profiles: today that feature would touch four files.</p>
+
+  <h3 class="mt-4 text-sm font-bold text-sky-300 uppercase tracking-wide">Solution</h3>
+  <p class="mt-1 text-sm text-slate-300">Deepen <span class="mono">refs.js</span> into <b>the Simulation module</b>: one call takes a model + a Scenario Profile and returns everything the UI needs — per-job verdicts, the workflow verdict, and display-ready condition strings — so no caller re-derives or re-splits verdict data. The six built-in <span class="mono">REF_CONTEXTS</span> become built-in Scenario Profiles: <b>adapters at the same seam</b> the committed YAML profiles will use. That's two adapters — a real seam, per the one-adapter/two-adapter rule, and the profile feature becomes "add a loader adapter," not "thread a new concept through four files."</p>
+
+  <h3 class="mt-4 text-sm font-bold text-sky-300 uppercase tracking-wide">Benefits</h3>
+  <p class="mt-1 text-sm text-slate-300"><b>Locality:</b> ADR-0001's "always labeled as assumptions" invariant gets one enforcement point instead of three render paths. <b>Leverage:</b> Scenario Profiles, provenance labels, and future what-if UI all arrive through one interface. <b>Tests:</b> the excellent <span class="mono">refs.test.mjs</span> suite extends naturally; untested <span class="mono">formatCondition</span>/<span class="mono">contextCounts</span> get covered as part of the verdict payload.</p>
+
+  <div class="grid md:grid-cols-2 gap-4 mt-5">
+    <div>
+      <p class="text-xs mono text-rose-400 mb-2">BEFORE — verdict concept split, 2 render paths</p>
+      <pre class="mermaid">
+flowchart LR
+  R[refs.js<br/>jobVerdict + filterModel<br/>+ formatCondition] --> M[main.js<br/>workflow verdict → prose]
+  R --> V[render.js<br/>node verdict → badge]
+  R --> D[drawer.js<br/>formatCondition only]
+  style R fill:#3b1219,stroke:#e11d48
+      </pre>
+    </div>
+    <div>
+      <p class="text-xs mono text-emerald-400 mb-2">AFTER — Simulation module, profiles as adapters</p>
+      <div class="mod">
+        <div class="iface mono">simulate(model, scenarioProfile) → verdicts + workflow + display strings</div>
+        <div class="impl">
+          <div class="flex gap-1 text-center">
+            <div class="flex-1 border border-slate-700 rounded p-1">tri-state evalIf</div>
+            <div class="flex-1 border border-slate-700 rounded p-1">jobVerdict</div>
+            <div class="flex-1 border border-slate-700 rounded p-1">condition formatting</div>
+          </div>
+          <div class="mt-2 flex gap-1 text-center">
+            <div class="flex-1 border border-emerald-800 rounded p-1 text-emerald-400">adapter: built-in contexts</div>
+            <div class="flex-1 border border-emerald-800 rounded p-1 text-emerald-400">adapter: committed YAML profiles</div>
+          </div>
+          <div class="mt-2 text-center text-slate-500">two adapters ⇒ real seam</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ══════════════ CANDIDATE 3 ══════════════ -->
+<section class="card p-6 mb-8">
+  <div class="flex items-start justify-between gap-4">
+    <h2 class="text-xl font-semibold text-white">3 · Turn serialize.js into a real Manifest module</h2>
+    <span class="badge-explore text-xs font-bold px-3 py-1 rounded-full whitespace-nowrap">Worth exploring</span>
+  </div>
+  <div class="flex gap-2 mt-3 flex-wrap">
+    <span class="filechip mono">src/serialize.js (24)</span>
+    <span class="filechip mono">manifest.schema.json</span>
+    <span class="filechip mono">bin/generate.mjs:240</span>
+    <span class="filechip mono">src/main.js:351,358</span>
+  </div>
+
+  <h3 class="mt-5 text-sm font-bold text-sky-300 uppercase tracking-wide">Problem</h3>
+  <p class="mt-1 text-sm text-slate-300"><span class="mono">serialize.js</span> is textbook shallow: two one-object-literal functions doing Map⇆array. It barely passes the deletion test today — its only value is being the single home of the manifest shape. But the grilling promoted the Manifest to a <b>versioned public contract</b> (prerequisite for Manifest Diff), and nothing owns that contract: no <span class="mono">schema_version</span>, no validation against <span class="mono">manifest.schema.json</span>, <span class="mono">deserializeModel</span> untested, and every job's <span class="mono">raw</span> resolved YAML fans out into the artifact unreviewed (parser internal representation leaking to disk).</p>
+
+  <h3 class="mt-4 text-sm font-bold text-sky-300 uppercase tracking-wide">Solution</h3>
+  <p class="mt-1 text-sm text-slate-300">Deepen it into the Manifest module: owns <span class="mono">schema_version</span> stamping (plus oracle-verified GitLab version per ADR-0002), validates on read and write, and makes the raw-YAML-in-manifest choice an explicit, documented policy. Manifest Diff later lands <i>inside</i> this module — comparison logic next to the contract it compares.</p>
+
+  <h3 class="mt-4 text-sm font-bold text-sky-300 uppercase tracking-wide">Benefits</h3>
+  <p class="mt-1 text-sm text-slate-300"><b>Locality:</b> schema evolution and version-mismatch handling in one file instead of scattered across generator and viewer. <b>Leverage:</b> generator, viewer, and future diff CLI all consume one contract. <b>Tests:</b> round-trip (serialize→deserialize) and schema-validation tests become natural; today <span class="mono">deserializeModel</span> has zero coverage.</p>
+
+  <div class="grid md:grid-cols-2 gap-4 mt-5">
+    <div>
+      <p class="text-xs mono text-rose-400 mb-2">BEFORE — shallow: interface ≈ implementation</p>
+      <div class="mod">
+        <div class="iface mono" style="font-size:12px">serializeModel · deserializeModel (+ callers must know: raw fan-out, no version, no validation)</div>
+        <div class="impl text-center py-1">Map ⇆ array. 24 lines.</div>
+      </div>
+    </div>
+    <div>
+      <p class="text-xs mono text-emerald-400 mb-2">AFTER — deep: contract behind small interface</p>
+      <div class="mod">
+        <div class="iface mono">writeManifest / readManifest (/ later: diffManifests)</div>
+        <div class="impl">
+          <div class="grid grid-cols-2 gap-1 text-center">
+            <div class="border border-slate-700 rounded p-1">schema_version + oracle version stamp</div>
+            <div class="border border-slate-700 rounded p-1">schema validation both directions</div>
+            <div class="border border-slate-700 rounded p-1">raw-YAML policy, explicit</div>
+            <div class="border border-slate-700 rounded p-1">version-mismatch errors</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ══════════════ CANDIDATE 4 ══════════════ -->
+<section class="card p-6 mb-8">
+  <div class="flex items-start justify-between gap-4">
+    <h2 class="text-xl font-semibold text-white">4 · Give the needs-edge one home (and graph/layout their first tests)</h2>
+    <span class="badge-explore text-xs font-bold px-3 py-1 rounded-full whitespace-nowrap">Worth exploring</span>
+  </div>
+  <div class="flex gap-2 mt-3 flex-wrap">
+    <span class="filechip mono">src/parser.js:308–330,417</span>
+    <span class="filechip mono">src/graph.js:33–49</span>
+    <span class="filechip mono">src/layout.js</span>
+    <span class="filechip mono">src/render.js:155–162</span>
+  </div>
+
+  <h3 class="mt-5 text-sm font-bold text-sky-300 uppercase tracking-wide">Problem</h3>
+  <p class="mt-1 text-sm text-slate-300">Understanding one DAG edge takes four files: parser defines tri-state <span class="mono">needs</span> (<span class="mono">null</span> = stage-ordered, <span class="mono">[]</span> = immediate, <span class="mono">[...]</span> = explicit), graph.js <i>re-encodes</i> that convention into implicit stage edges, layout positions them, render badges them. Every consumer must re-learn the tri-state invariant — the parser's interface is bigger than its signature. And the two pure modules in the chain, <span class="mono">graph.js</span> and <span class="mono">layout.js</span>, have <b>zero tests</b>: no test file imports them; they're only reachable through a full parsed model.</p>
+
+  <h3 class="mt-4 text-sm font-bold text-sky-300 uppercase tracking-wide">Solution</h3>
+  <p class="mt-1 text-sm text-slate-300">Make edge derivation the graph module's whole job: it alone consumes the tri-state and emits edges tagged with why they exist (explicit need vs stage order), so layout and render stop caring which kind they got. Add fixture-based tests through <span class="mono">buildGraph</span>/<span class="mono">layoutPipeline</span>'s own interfaces — both are pure functions begging for them.</p>
+
+  <h3 class="mt-4 text-sm font-bold text-sky-300 uppercase tracking-wide">Benefits</h3>
+  <p class="mt-1 text-sm text-slate-300"><b>Locality:</b> the edge rule lives in one file; a GitLab <span class="mono">needs</span> semantics change is a one-module edit. <b>Tests:</b> the currently-invisible implicit-edge rule ("nearest earlier non-empty stage") gets pinned by unit tests before Manifest Diff starts comparing edges — diff correctness depends on edge derivation being right.</p>
+
+  <div class="grid md:grid-cols-2 gap-4 mt-5">
+    <div>
+      <p class="text-xs mono text-rose-400 mb-2">BEFORE — one concept, four files</p>
+      <pre class="mermaid">
+flowchart LR
+  P[parser.js<br/>tri-state needs] --> G[graph.js<br/>re-encodes rule]
+  G --> L[layout.js]
+  P --> V[render.js<br/>re-reads needs fields]
+  G --> V
+  style P fill:#3b1219,stroke:#e11d48
+  style V fill:#3b1219,stroke:#e11d48
+      </pre>
+    </div>
+    <div>
+      <p class="text-xs mono text-emerald-400 mb-2">AFTER — edges leave graph.js self-describing</p>
+      <div class="mod">
+        <div class="iface mono">buildGraph(model) → edges tagged with their reason</div>
+        <div class="impl text-center">tri-state interpretation + implicit stage-edge rule, tested via fixtures<br/><span class="text-slate-500">layout & render consume edges, never raw needs</span></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ══════════════ CANDIDATE 5 ══════════════ -->
+<section class="card p-6 mb-8">
+  <div class="flex items-start justify-between gap-4">
+    <h2 class="text-xl font-semibold text-white">5 · Split the main.js god-bootstrap</h2>
+    <span class="badge-spec text-xs font-bold px-3 py-1 rounded-full whitespace-nowrap">Speculative</span>
+  </div>
+  <div class="flex gap-2 mt-3 flex-wrap">
+    <span class="filechip mono">src/main.js (368, touches 9 modules)</span>
+  </div>
+  <h3 class="mt-5 text-sm font-bold text-sky-300 uppercase tracking-wide">Problem</h3>
+  <p class="mt-1 text-sm text-slate-300">Mutable global state + orchestration + DOM rendering + event wiring + drawer drag + keyboard + manifest mode, all in one untested file.</p>
+  <h3 class="mt-4 text-sm font-bold text-sky-300 uppercase tracking-wide">Why only speculative</h3>
+  <p class="mt-1 text-sm text-slate-300">It's the app shell of a small app — apply the deletion test and most of its complexity <i>reappears</i> somewhere, because something must wire the UI. Splitting now risks trading one honest god-file for five shallow modules. Candidates 1–2 already shrink it (workflow-verdict prose moves behind the Simulation seam). Revisit only if viewer features keep growing. No diagram — the deepening shape isn't clear enough to draw honestly.</p>
+  <div class="callout rounded-lg p-3 mt-4 text-sm text-slate-300">Quick win found during exploration, no card needed: <span class="mono">walkYaml</span> + <span class="mono">IGNORE_DIRS</span> duplicated near-verbatim in <span class="mono">generate.mjs:71–87</span> and <span class="mono">oracle.mjs:25–40</span>. Fold into one shared helper whenever candidate 1 touches the generator.</div>
+</section>
+
+<!-- ══════════════ TOP RECOMMENDATION ══════════════ -->
+<section class="card p-6 mb-8 border-emerald-800" style="border-color:#14532d">
+  <h2 class="text-xl font-bold text-emerald-300">Top recommendation: Candidate 1</h2>
+  <p class="mt-2 text-sm text-slate-300">The roadmap's very next task — the GitLab-exact include-merge fix demanded by ADR-0002 — currently has to be performed inside an overloaded merge primitive with implicit phase ordering and side-effect error channels. Do candidate 1 <b>first, as the vehicle for that fix</b>: splitting the merge primitives is 80% of the refactor and 100% of the prerequisite. Candidate 2 follows immediately before Scenario Profiles work starts, for the same reason: deepen the seam <i>before</i> the feature that stresses it, not after. Candidate 3 rides along whenever Manifest Diff begins.</p>
+  <p class="mt-3 text-xs text-slate-500 mono">Order: 1 (with merge fix) → 2 (before profiles) → 3 (with diff) → 4 opportunistic → 5 don't.</p>
+</section>
+
+<footer class="text-xs text-slate-600 mono pb-10">Generated by architecture review · vocabulary: /codebase-design + CONTEXT.md · no ADR conflicts</footer>
+</body>
+</html>
