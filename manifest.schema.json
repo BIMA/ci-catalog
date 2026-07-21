@@ -1,0 +1,135 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/BIMA/ci-catalog/manifest.schema.json",
+  "title": "ci-catalog manifest",
+  "description": "Static catalog produced by `ci-catalog generate` (bin/generate.mjs) and consumed by the viewer (src/main.js). Jobs are the fully resolved output of src/resolve/ — includes, extends, !reference and spec:inputs are already applied. rules/only/except are shipped raw and evaluated client-side.",
+  "type": "object",
+  "required": ["schemaVersion", "generatedAt", "project", "fileCount", "pipelines"],
+  "properties": {
+    "schemaVersion": { "const": 1 },
+    "generatedAt": { "type": "string", "format": "date-time" },
+    "project": { "type": "string", "description": "basename of the project directory" },
+    "fileCount": { "type": "integer", "description": "YAML files seen, local + fetched includes" },
+    "pipelines": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/pipeline" }
+    }
+  },
+  "$defs": {
+    "pipeline": {
+      "type": "object",
+      "required": ["name", "path"],
+      "properties": {
+        "name": { "type": "string", "description": "path minus .yml/.yaml extension" },
+        "path": { "type": "string", "description": "root-level entrypoint file, relative to project dir" },
+        "error": { "type": "string", "description": "present instead of model when parsing failed" },
+        "jobCount": { "type": "integer" },
+        "stageCount": { "type": "integer" },
+        "warningCount": { "type": "integer" },
+        "model": { "$ref": "#/$defs/model" }
+      },
+      "oneOf": [
+        { "required": ["error"] },
+        { "required": ["jobCount", "stageCount", "warningCount", "model"] }
+      ]
+    },
+    "model": {
+      "type": "object",
+      "required": ["stages", "jobs", "templates", "warnings", "workflow"],
+      "properties": {
+        "stages": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "layout column order: .pre first, .post last, only non-empty stages, undeclared-but-used stages appended"
+        },
+        "jobs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/job" },
+          "description": "viewer rebuilds Map keyed by job.name (src/serialize.js deserializeModel)"
+        },
+        "templates": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "hidden `.job` names — extend sources, never runnable"
+        },
+        "warnings": { "type": "array", "items": { "type": "string" } },
+        "workflow": {
+          "type": ["object", "null"],
+          "description": "raw `workflow:` block; rules evaluated client-side per ref context (src/refs.js)"
+        }
+      }
+    },
+    "job": {
+      "type": "object",
+      "required": [
+        "name", "stage", "needs", "startsImmediately", "dependencies", "when",
+        "allowFailure", "manual", "parallel", "trigger", "image", "services",
+        "tags", "script", "beforeScript", "afterScript", "rules", "only",
+        "except", "artifacts", "cache", "environment", "variables", "retry",
+        "timeout", "coverage", "resourceGroup", "raw"
+      ],
+      "properties": {
+        "name": { "type": "string" },
+        "stage": { "type": "string", "description": "defaults to \"test\" when unset in YAML" },
+        "needs": {
+          "type": ["array", "null"],
+          "items": { "$ref": "#/$defs/need" },
+          "description": "tri-state: null = no needs: key (stage-ordered, implicit edges); [] = needs: [] (startsImmediately); [...] = explicit DAG edges"
+        },
+        "startsImmediately": { "type": "boolean", "description": "true iff YAML had `needs: []`" },
+        "dependencies": { "type": ["array", "null"], "items": { "type": "string" } },
+        "when": {
+          "type": ["string", "null"],
+          "description": "null when `rules:` present (viewer derives when from matching rule); otherwise defaults to on_success"
+        },
+        "allowFailure": { "type": "boolean" },
+        "manual": { "type": "boolean", "description": "job-level `when: manual`" },
+        "parallel": {
+          "oneOf": [
+            { "type": "null" },
+            {
+              "type": "object",
+              "required": ["kind", "count"],
+              "properties": {
+                "kind": { "enum": ["count", "matrix"] },
+                "count": { "type": "integer" }
+              }
+            }
+          ]
+        },
+        "trigger": { "type": ["object", "string", "null"], "description": "raw trigger: value" },
+        "image": { "type": ["string", "null"], "description": "object form collapsed to its .name" },
+        "services": { "type": ["array", "null"] },
+        "tags": { "type": ["array", "null"] },
+        "script": { "type": ["array", "string", "null"], "description": "raw value; GitLab allows string or array" },
+        "beforeScript": { "type": ["array", "string", "null"] },
+        "afterScript": { "type": ["array", "string", "null"] },
+        "rules": { "type": ["array", "null"], "description": "raw rules: — NOT pre-evaluated; three-valued eval happens client-side per ref context" },
+        "only": { "type": ["array", "object", "null"], "description": "raw legacy only:" },
+        "except": { "type": ["array", "object", "null"], "description": "raw legacy except:" },
+        "artifacts": { "type": ["object", "null"] },
+        "cache": { "type": ["object", "array", "null"] },
+        "environment": { "type": ["object", "string", "null"] },
+        "variables": { "type": ["object", "null"] },
+        "retry": { "type": ["integer", "object", "null"] },
+        "timeout": { "type": ["string", "null"] },
+        "coverage": { "type": ["string", "null"] },
+        "resourceGroup": { "type": ["string", "null"] },
+        "raw": {
+          "type": "object",
+          "description": "full resolved job definition after extends/!reference/defaults — source for the drawer's resolved-YAML panel"
+        }
+      }
+    },
+    "need": {
+      "type": "object",
+      "required": ["job", "optional", "artifacts", "external"],
+      "properties": {
+        "job": { "type": "string" },
+        "optional": { "type": "boolean" },
+        "artifacts": { "type": "boolean" },
+        "external": { "type": "boolean", "description": "cross-pipeline/project need — flagged, not drawn as an edge" }
+      }
+    }
+  }
+}
