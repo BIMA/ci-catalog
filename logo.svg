@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 524 120" role="img" aria-label="GitLab CI Catalog">
+  <style>
+    .wordmark { font: 600 42px -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; fill: #1e293b; }
+    .wordmark .accent { fill: #e05d44; font-weight: 700; }
+    .wire { stroke: #94a3b8; stroke-width: 2; fill: none; }
+    .node { rx: 4; }
+    @media (prefers-color-scheme: dark) {
+      .wordmark { fill: #e2e8f0; }
+      .wire { stroke: #64748b; }
+    }
+  </style>
+
+  <!-- mini pipeline DAG -->
+  <path class="wire" d="M40 60 C 48 60, 44 32, 54 32" />
+  <path class="wire" d="M40 60 C 48 60, 44 88, 54 88" />
+  <path class="wire" d="M86 32 C 96 32, 92 60, 100 60" />
+  <path class="wire" d="M86 88 C 96 88, 92 60, 100 60" />
+  <rect class="node" x="8"   y="50" width="32" height="20" fill="#14b8a6" />
+  <rect class="node" x="54"  y="22" width="32" height="20" fill="#e05d44" />
+  <rect class="node" x="54"  y="78" width="32" height="20" fill="#64748b" />
+  <rect class="node" x="100" y="50" width="32" height="20" fill="#6366f1" />
+
+  <text class="wordmark" x="156" y="75">GitLab CI <tspan class="accent">Catalog</tspan></text>
+</svg>

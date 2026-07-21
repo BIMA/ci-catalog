@@ -1,3 +1,17 @@
+<p align="center">
+  <a href="https://bima.github.io/ci-catalog/">
+    <img src="logo.svg" alt="GitLab CI Catalog" width="440">
+  </a>
+</p>
+
+<p align="center">
+  <a href="https://github.com/BIMA/ci-catalog/actions/workflows/test.yml"><img src="https://github.com/BIMA/ci-catalog/actions/workflows/test.yml/badge.svg" alt="tests"></a>
+  <a href="https://github.com/BIMA/ci-catalog/actions/workflows/deploy-pages.yml"><img src="https://github.com/BIMA/ci-catalog/actions/workflows/deploy-pages.yml/badge.svg" alt="deploy"></a>
+  <a href="https://www.npmjs.com/package/ci-catalog"><img src="https://img.shields.io/npm/v/ci-catalog" alt="npm version"></a>
+  <a href="https://bima.github.io/ci-catalog/"><img src="https://img.shields.io/badge/demo-live-2ea44f" alt="live demo"></a>
+  <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue" alt="MIT license"></a>
+</p>
+
 # CI Catalog — GitLab CI DAG Viewer
 
 A dbt-Catalog-style explorer for GitLab CI/CD pipelines: load a `.gitlab-ci.yml`
