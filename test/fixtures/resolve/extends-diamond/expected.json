@@ -1,0 +1,65 @@
+{
+  "model": {
+    "stages": [
+      "test"
+    ],
+    "jobs": [
+      {
+        "name": "job",
+        "stage": "test",
+        "needs": null,
+        "startsImmediately": false,
+        "dependencies": null,
+        "when": "on_success",
+        "allowFailure": false,
+        "manual": false,
+        "parallel": null,
+        "trigger": null,
+        "image": "node:20",
+        "services": null,
+        "tags": null,
+        "script": [
+          "child"
+        ],
+        "beforeScript": null,
+        "afterScript": null,
+        "rules": null,
+        "only": null,
+        "except": null,
+        "artifacts": null,
+        "cache": null,
+        "environment": null,
+        "variables": {
+          "A": "base",
+          "B": "base",
+          "C": "right"
+        },
+        "retry": null,
+        "timeout": null,
+        "coverage": null,
+        "resourceGroup": null,
+        "raw": {
+          "image": "node:20",
+          "variables": {
+            "A": "base",
+            "B": "base",
+            "C": "right"
+          },
+          "script": [
+            "child"
+          ]
+        }
+      }
+    ],
+    "templates": [
+      ".base",
+      ".left",
+      ".right"
+    ],
+    "warnings": [],
+    "workflow": null
+  },
+  "errors": [],
+  "warnings": [],
+  "unresolved": []
+}

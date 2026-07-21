@@ -1,0 +1,52 @@
+{
+  "model": {
+    "stages": [
+      "test"
+    ],
+    "jobs": [
+      {
+        "name": "job",
+        "stage": "test",
+        "needs": null,
+        "startsImmediately": false,
+        "dependencies": null,
+        "when": "on_success",
+        "allowFailure": false,
+        "manual": false,
+        "parallel": null,
+        "trigger": null,
+        "image": "alpine:3",
+        "services": null,
+        "tags": null,
+        "script": [
+          "run"
+        ],
+        "beforeScript": null,
+        "afterScript": null,
+        "rules": null,
+        "only": null,
+        "except": null,
+        "artifacts": null,
+        "cache": null,
+        "environment": null,
+        "variables": null,
+        "retry": null,
+        "timeout": null,
+        "coverage": null,
+        "resourceGroup": null,
+        "raw": {
+          "script": [
+            "run"
+          ],
+          "image": "alpine:3"
+        }
+      }
+    ],
+    "templates": [],
+    "warnings": [],
+    "workflow": null
+  },
+  "errors": [],
+  "warnings": [],
+  "unresolved": []
+}

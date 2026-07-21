@@ -1,4 +1,4 @@
-import { parsePipeline } from "./parser.js";
+import { resolvePipeline } from "./resolve/index.js";
 import { buildGraph } from "./graph.js";
 import { DagView } from "./render.js";
 import { renderDrawer } from "./drawer.js";
@@ -23,11 +23,9 @@ const state = {
 const view = new DagView($("#canvas"), { onSelect: selectJob });
 
 function loadYaml(text, sourceLabel, parseOpts = {}) {
-  let model;
-  try {
-    model = parsePipeline(text, parseOpts);
-  } catch (e) {
-    alert(`Could not parse pipeline:\n${e.message}`);
+  const { model, errors } = resolvePipeline(text, parseOpts);
+  if (!model) {
+    alert(`Could not parse pipeline:\n${errors.join("\n")}`);
     return false;
   }
   applyModel(model, sourceLabel);

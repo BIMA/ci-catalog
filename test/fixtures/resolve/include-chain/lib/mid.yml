@@ -1,0 +1,6 @@
+include:
+  - local: lib/deep.yml
+mid-job:
+  script: [mid]
+shared:
+  script: [mid-wins]

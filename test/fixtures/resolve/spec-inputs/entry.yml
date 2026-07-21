@@ -1,0 +1,8 @@
+# Claim: spec: inputs interpolate $[[ inputs.x ]] with per-include overrides
+# beating declared defaults; multi-doc body after the spec header merges.
+stages: [test, deploy]
+include:
+  - local: templates/job.yml
+    inputs: {name: unit}
+  - local: templates/job.yml
+    inputs: {name: integration, stage: deploy}

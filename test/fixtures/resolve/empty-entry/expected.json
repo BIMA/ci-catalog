@@ -1,0 +1,7 @@
+{
+  "model": null,
+  "errors": [
+    "YAML root must be a mapping with content (empty or non-mapping document)."
+  ],
+  "unresolved": []
+}

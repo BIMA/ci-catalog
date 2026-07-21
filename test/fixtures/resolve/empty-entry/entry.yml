@@ -1,0 +1,1 @@
+# Claim: an empty document is a domain error (errors-as-values), not a crash.

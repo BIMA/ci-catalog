@@ -21,7 +21,7 @@ import { join, relative, dirname, basename, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 import { execFileSync } from "node:child_process";
 
-import { parsePipeline } from "../src/parser.js";
+import { resolvePipeline } from "../src/resolve/index.js";
 import { serializeModel } from "../src/serialize.js";
 
 const SCHEMA_VERSION = 1;
@@ -161,17 +161,12 @@ async function fetchInclude(inc, { gitlabUrl, token }) {
 }
 
 function parseAll(files, entrypoints) {
-  const results = new Map(); // path → {model} | {error, unresolved}
+  const results = new Map(); // path → {model} | {error}
   const unresolved = new Map(); // key → inc
   for (const path of entrypoints) {
-    try {
-      const model = parsePipeline(files[path], { files, path });
-      results.set(path, { model });
-      for (const inc of model.unresolved) unresolved.set(inc.key, inc);
-    } catch (e) {
-      results.set(path, { error: e.message });
-      for (const inc of e.unresolved ?? []) unresolved.set(inc.key, inc);
-    }
+    const r = resolvePipeline(files[path], { files, path });
+    results.set(path, r.model ? { model: r.model } : { error: r.errors.join("; ") });
+    for (const inc of r.unresolved) unresolved.set(inc.key, inc);
   }
   return { results, unresolved };
 }

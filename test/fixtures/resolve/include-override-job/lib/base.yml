@@ -1,0 +1,4 @@
+build:
+  image: maven:3
+  script: [include-version]
+  variables: {FROM_INCLUDE: "1"}

@@ -1,0 +1,57 @@
+{
+  "model": {
+    "stages": [
+      "test"
+    ],
+    "jobs": [
+      {
+        "name": "build",
+        "stage": "test",
+        "needs": null,
+        "startsImmediately": false,
+        "dependencies": null,
+        "when": "on_success",
+        "allowFailure": false,
+        "manual": false,
+        "parallel": null,
+        "trigger": null,
+        "image": "maven:3",
+        "services": null,
+        "tags": null,
+        "script": [
+          "main-version"
+        ],
+        "beforeScript": null,
+        "afterScript": null,
+        "rules": null,
+        "only": null,
+        "except": null,
+        "artifacts": null,
+        "cache": null,
+        "environment": null,
+        "variables": {
+          "FROM_INCLUDE": "1"
+        },
+        "retry": null,
+        "timeout": null,
+        "coverage": null,
+        "resourceGroup": null,
+        "raw": {
+          "image": "maven:3",
+          "script": [
+            "main-version"
+          ],
+          "variables": {
+            "FROM_INCLUDE": "1"
+          }
+        }
+      }
+    ],
+    "templates": [],
+    "warnings": [],
+    "workflow": null
+  },
+  "errors": [],
+  "warnings": [],
+  "unresolved": []
+}

@@ -1,0 +1,7 @@
+# Claim: a job redefined in the main file wins over the same job from an
+# include. Recorded with the current deep-merge behavior — ADR-0002 marks this
+# as the case commit B must flip to GitLab's real include-override semantics.
+include:
+  - local: lib/base.yml
+build:
+  script: [main-version]

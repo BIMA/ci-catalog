@@ -2,7 +2,13 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 
 import { evalIf, jobVerdict, filterModel, REF_CONTEXTS } from "../src/refs.js";
-import { parsePipeline } from "../src/parser.js";
+import { resolvePipeline } from "../src/resolve/index.js";
+
+const parsePipeline = (text) => {
+  const { model, errors } = resolvePipeline(text);
+  if (!model) throw new Error(errors.join("; "));
+  return model;
+};
 
 const mr = REF_CONTEXTS.mr;
 const branch = REF_CONTEXTS.branch;

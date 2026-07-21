@@ -1,0 +1,101 @@
+{
+  "model": {
+    "stages": [
+      "test"
+    ],
+    "jobs": [
+      {
+        "name": "plain",
+        "stage": "test",
+        "needs": null,
+        "startsImmediately": false,
+        "dependencies": null,
+        "when": "on_success",
+        "allowFailure": false,
+        "manual": false,
+        "parallel": null,
+        "trigger": null,
+        "image": "legacy:1",
+        "services": null,
+        "tags": null,
+        "script": [
+          "x"
+        ],
+        "beforeScript": [
+          "setup"
+        ],
+        "afterScript": null,
+        "rules": null,
+        "only": null,
+        "except": null,
+        "artifacts": null,
+        "cache": null,
+        "environment": null,
+        "variables": null,
+        "retry": 2,
+        "timeout": null,
+        "coverage": null,
+        "resourceGroup": null,
+        "raw": {
+          "script": [
+            "x"
+          ],
+          "image": "legacy:1",
+          "before_script": [
+            "setup"
+          ],
+          "retry": 2
+        }
+      },
+      {
+        "name": "override",
+        "stage": "test",
+        "needs": null,
+        "startsImmediately": false,
+        "dependencies": null,
+        "when": "on_success",
+        "allowFailure": false,
+        "manual": false,
+        "parallel": null,
+        "trigger": null,
+        "image": "mine:2",
+        "services": null,
+        "tags": null,
+        "script": [
+          "y"
+        ],
+        "beforeScript": [
+          "own-setup"
+        ],
+        "afterScript": null,
+        "rules": null,
+        "only": null,
+        "except": null,
+        "artifacts": null,
+        "cache": null,
+        "environment": null,
+        "variables": null,
+        "retry": 2,
+        "timeout": null,
+        "coverage": null,
+        "resourceGroup": null,
+        "raw": {
+          "image": "mine:2",
+          "before_script": [
+            "own-setup"
+          ],
+          "script": [
+            "y"
+          ],
+          "retry": 2
+        }
+      }
+    ],
+    "templates": [],
+    "warnings": [],
+    "workflow": null
+  },
+  "errors": [],
+  "warnings": [],
+  "unresolved": []
+}

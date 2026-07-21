@@ -1,0 +1,5 @@
+variables:
+  ENV: from-include
+  REGION: eu
+default:
+  image: alpine:3

@@ -1,9 +1,13 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 
-import { parsePipeline, includeKeys } from "../src/parser.js";
+import { resolvePipeline, includeKeys } from "../src/resolve/index.js";
 
-const parse = (text, files = {}) => parsePipeline(text, { files, path: ".gitlab-ci.yml" });
+const parse = (text, files = {}) => {
+  const { model, errors } = resolvePipeline(text, { files, path: ".gitlab-ci.yml" });
+  if (!model) throw new Error(errors.join("; "));
+  return model;
+};
 
 // ---- extends / merge semantics ----
 
@@ -213,18 +217,19 @@ job: {script: [hi]}
   assert.ok(m.jobs.has("deploy-prod"));
 });
 
-test("entrypoint with only unresolved includes throws but carries unresolved", () => {
-  try {
-    parse(`
+test("entrypoint with only unresolved includes reports the error and unresolved as values", () => {
+  const { model, errors, unresolved } = resolvePipeline(
+    `
 include:
   - project: grp/templates
     file: /jobs.yml
-`);
-    assert.fail("should throw");
-  } catch (e) {
-    assert.equal(e.unresolved?.length, 1);
-    assert.equal(e.unresolved[0].kind, "project");
-  }
+`,
+    { path: ".gitlab-ci.yml" }
+  );
+  assert.equal(model, null);
+  assert.equal(errors.length, 1);
+  assert.equal(unresolved.length, 1);
+  assert.equal(unresolved[0].kind, "project");
 });
 
 // ---- needs / stages / defaults ----

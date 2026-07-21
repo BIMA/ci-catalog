@@ -1,0 +1,15 @@
+# Claim: multi-parent extends merges parents left-to-right (later parent
+# wins), child wins over all parents; hashes deep-merge, arrays replace.
+.base:
+  image: node:20
+  variables: {A: base, B: base, C: base}
+  script: [base]
+.left:
+  extends: .base
+  variables: {B: left}
+.right:
+  extends: .base
+  variables: {C: right}
+job:
+  extends: [.left, .right]
+  script: [child]

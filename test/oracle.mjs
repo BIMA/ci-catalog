@@ -15,7 +15,13 @@
 
 import { readFileSync, readdirSync, statSync } from "node:fs";
 import { join, relative, dirname, basename, sep } from "node:path";
-import { parsePipeline } from "../src/parser.js";
+import { resolvePipeline } from "../src/resolve/index.js";
+
+const parsePipeline = (text, opts) => {
+  const { model, errors } = resolvePipeline(text, opts);
+  if (!model) throw new Error(errors.join("; "));
+  return model;
+};
 
 const IGNORE_DIRS = new Set(["node_modules", ".git", ".idea", "dist", "pipeline-docs"]);
 

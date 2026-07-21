@@ -1,0 +1,19 @@
+# Claim: !reference into an array splices flat; !reference in needs resolves
+# to job entries, nested lists flatten; scalar !reference substitutes.
+.setup:
+  script: [prep-a, prep-b]
+  timeout: 30m
+.shared_needs:
+  - {job: release, artifacts: false}
+release:
+  script: [rel]
+version:
+  script: [ver]
+notes:
+  script:
+    - !reference [.setup, script]
+    - publish
+  timeout: !reference [.setup, timeout]
+  needs:
+    - {job: version, artifacts: true}
+    - !reference [.shared_needs]

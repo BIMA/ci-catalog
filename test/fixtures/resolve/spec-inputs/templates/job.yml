@@ -1,0 +1,10 @@
+spec:
+  inputs:
+    stage:
+      default: test
+    name: {}
+---
+"$[[ inputs.name ]]-job":
+  stage: $[[ inputs.stage ]]
+  script:
+    - echo running $[[ inputs.name ]]

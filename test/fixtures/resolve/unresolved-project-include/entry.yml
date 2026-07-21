@@ -1,0 +1,8 @@
+# Claim: an unfetched non-local include is reported via `unresolved` with a
+# canonical key, jobs from elsewhere still resolve, and a warning is emitted.
+include:
+  - project: grp/templates
+    ref: main
+    file: /ci/base.yml
+local-job:
+  script: [echo]

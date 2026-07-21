@@ -1,0 +1,8 @@
+# Claim: top-level keys (variables, default) in the main file override the
+# same keys from an include. Recorded with current deep-merge behavior.
+include:
+  - local: lib/globals.yml
+variables:
+  ENV: from-main
+job:
+  script: [run]

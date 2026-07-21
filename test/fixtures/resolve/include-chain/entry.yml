@@ -1,0 +1,6 @@
+# Claim: nested includes resolve recursively; each includer wins over what it
+# included.
+include:
+  - local: lib/mid.yml
+top-job:
+  script: [top]

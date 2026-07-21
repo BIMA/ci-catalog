@@ -1,0 +1,123 @@
+{
+  "model": {
+    "stages": [
+      "test"
+    ],
+    "jobs": [
+      {
+        "name": "first-job",
+        "stage": "test",
+        "needs": null,
+        "startsImmediately": false,
+        "dependencies": null,
+        "when": "on_success",
+        "allowFailure": false,
+        "manual": false,
+        "parallel": null,
+        "trigger": null,
+        "image": null,
+        "services": null,
+        "tags": null,
+        "script": [
+          "one"
+        ],
+        "beforeScript": null,
+        "afterScript": null,
+        "rules": null,
+        "only": null,
+        "except": null,
+        "artifacts": null,
+        "cache": null,
+        "environment": null,
+        "variables": null,
+        "retry": null,
+        "timeout": null,
+        "coverage": null,
+        "resourceGroup": null,
+        "raw": {
+          "script": [
+            "one"
+          ]
+        }
+      },
+      {
+        "name": "shared",
+        "stage": "test",
+        "needs": null,
+        "startsImmediately": false,
+        "dependencies": null,
+        "when": "on_success",
+        "allowFailure": false,
+        "manual": false,
+        "parallel": null,
+        "trigger": null,
+        "image": null,
+        "services": null,
+        "tags": null,
+        "script": [
+          "second-wins"
+        ],
+        "beforeScript": null,
+        "afterScript": null,
+        "rules": null,
+        "only": null,
+        "except": null,
+        "artifacts": null,
+        "cache": null,
+        "environment": null,
+        "variables": null,
+        "retry": null,
+        "timeout": null,
+        "coverage": null,
+        "resourceGroup": null,
+        "raw": {
+          "script": [
+            "second-wins"
+          ]
+        }
+      },
+      {
+        "name": "second-job",
+        "stage": "test",
+        "needs": null,
+        "startsImmediately": false,
+        "dependencies": null,
+        "when": "on_success",
+        "allowFailure": false,
+        "manual": false,
+        "parallel": null,
+        "trigger": null,
+        "image": null,
+        "services": null,
+        "tags": null,
+        "script": [
+          "two"
+        ],
+        "beforeScript": null,
+        "afterScript": null,
+        "rules": null,
+        "only": null,
+        "except": null,
+        "artifacts": null,
+        "cache": null,
+        "environment": null,
+        "variables": null,
+        "retry": null,
+        "timeout": null,
+        "coverage": null,
+        "resourceGroup": null,
+        "raw": {
+          "script": [
+            "two"
+          ]
+        }
+      }
+    ],
+    "templates": [],
+    "warnings": [],
+    "workflow": null
+  },
+  "errors": [],
+  "warnings": [],
+  "unresolved": []
+}

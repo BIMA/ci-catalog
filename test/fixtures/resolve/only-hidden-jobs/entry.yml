@@ -1,0 +1,7 @@
+# Claim: a file with only hidden jobs (an include-only template fragment)
+# yields the "no jobs" domain error — a normal Template Project input.
+.maven:
+  image: maven:3
+  script: [mvn verify]
+.helm:
+  script: [helm upgrade]

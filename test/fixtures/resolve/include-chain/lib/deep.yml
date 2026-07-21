@@ -1,0 +1,5 @@
+deep-job:
+  script: [deep]
+shared:
+  script: [deep-loses]
+  variables: {FROM_DEEP: "1"}

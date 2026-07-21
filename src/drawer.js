@@ -1,4 +1,4 @@
-import { dumpJobYaml } from "./parser.js";
+import { dumpJobYaml } from "./resolve/index.js";
 import { lineageOf } from "./graph.js";
 import { formatCondition } from "./refs.js";
 

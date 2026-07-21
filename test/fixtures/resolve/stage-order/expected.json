@@ -1,0 +1,208 @@
+{
+  "model": {
+    "stages": [
+      ".pre",
+      "build",
+      "test",
+      ".post",
+      "undeclared"
+    ],
+    "jobs": [
+      {
+        "name": "pre-job",
+        "stage": ".pre",
+        "needs": null,
+        "startsImmediately": false,
+        "dependencies": null,
+        "when": "on_success",
+        "allowFailure": false,
+        "manual": false,
+        "parallel": null,
+        "trigger": null,
+        "image": null,
+        "services": null,
+        "tags": null,
+        "script": [
+          "x"
+        ],
+        "beforeScript": null,
+        "afterScript": null,
+        "rules": null,
+        "only": null,
+        "except": null,
+        "artifacts": null,
+        "cache": null,
+        "environment": null,
+        "variables": null,
+        "retry": null,
+        "timeout": null,
+        "coverage": null,
+        "resourceGroup": null,
+        "raw": {
+          "stage": ".pre",
+          "script": [
+            "x"
+          ]
+        }
+      },
+      {
+        "name": "b",
+        "stage": "build",
+        "needs": null,
+        "startsImmediately": false,
+        "dependencies": null,
+        "when": "on_success",
+        "allowFailure": false,
+        "manual": false,
+        "parallel": null,
+        "trigger": null,
+        "image": null,
+        "services": null,
+        "tags": null,
+        "script": [
+          "x"
+        ],
+        "beforeScript": null,
+        "afterScript": null,
+        "rules": null,
+        "only": null,
+        "except": null,
+        "artifacts": null,
+        "cache": null,
+        "environment": null,
+        "variables": null,
+        "retry": null,
+        "timeout": null,
+        "coverage": null,
+        "resourceGroup": null,
+        "raw": {
+          "stage": "build",
+          "script": [
+            "x"
+          ]
+        }
+      },
+      {
+        "name": "t",
+        "stage": "test",
+        "needs": null,
+        "startsImmediately": false,
+        "dependencies": null,
+        "when": "on_success",
+        "allowFailure": false,
+        "manual": false,
+        "parallel": null,
+        "trigger": null,
+        "image": null,
+        "services": null,
+        "tags": null,
+        "script": [
+          "x"
+        ],
+        "beforeScript": null,
+        "afterScript": null,
+        "rules": null,
+        "only": null,
+        "except": null,
+        "artifacts": null,
+        "cache": null,
+        "environment": null,
+        "variables": null,
+        "retry": null,
+        "timeout": null,
+        "coverage": null,
+        "resourceGroup": null,
+        "raw": {
+          "stage": "test",
+          "script": [
+            "x"
+          ]
+        }
+      },
+      {
+        "name": "post-job",
+        "stage": ".post",
+        "needs": null,
+        "startsImmediately": false,
+        "dependencies": null,
+        "when": "on_success",
+        "allowFailure": false,
+        "manual": false,
+        "parallel": null,
+        "trigger": null,
+        "image": null,
+        "services": null,
+        "tags": null,
+        "script": [
+          "x"
+        ],
+        "beforeScript": null,
+        "afterScript": null,
+        "rules": null,
+        "only": null,
+        "except": null,
+        "artifacts": null,
+        "cache": null,
+        "environment": null,
+        "variables": null,
+        "retry": null,
+        "timeout": null,
+        "coverage": null,
+        "resourceGroup": null,
+        "raw": {
+          "stage": ".post",
+          "script": [
+            "x"
+          ]
+        }
+      },
+      {
+        "name": "extra",
+        "stage": "undeclared",
+        "needs": null,
+        "startsImmediately": false,
+        "dependencies": null,
+        "when": "on_success",
+        "allowFailure": false,
+        "manual": false,
+        "parallel": null,
+        "trigger": null,
+        "image": null,
+        "services": null,
+        "tags": null,
+        "script": [
+          "x"
+        ],
+        "beforeScript": null,
+        "afterScript": null,
+        "rules": null,
+        "only": null,
+        "except": null,
+        "artifacts": null,
+        "cache": null,
+        "environment": null,
+        "variables": null,
+        "retry": null,
+        "timeout": null,
+        "coverage": null,
+        "resourceGroup": null,
+        "raw": {
+          "stage": "undeclared",
+          "script": [
+            "x"
+          ]
+        }
+      }
+    ],
+    "templates": [],
+    "warnings": [
+      "Stage `undeclared` is used by a job but not declared in `stages:`."
+    ],
+    "workflow": null
+  },
+  "errors": [],
+  "warnings": [
+    "Stage `undeclared` is used by a job but not declared in `stages:`."
+  ],
+  "unresolved": []
+}

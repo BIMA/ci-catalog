@@ -1,0 +1,8 @@
+# Claim: stage order is .pre, declared stages, .post; a stage used but not
+# declared is appended with a warning; empty declared stages are dropped.
+stages: [build, unused, test]
+pre-job: {stage: .pre, script: [x]}
+b: {stage: build, script: [x]}
+t: {stage: test, script: [x]}
+post-job: {stage: .post, script: [x]}
+extra: {stage: undeclared, script: [x]}

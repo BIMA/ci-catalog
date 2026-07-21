@@ -1,0 +1,11 @@
+# Claim: multiple YAML documents without a spec: header merge in order, later
+# documents winning on conflicts.
+first-job:
+  script: [one]
+shared:
+  script: [first]
+---
+second-job:
+  script: [two]
+shared:
+  script: [second-wins]

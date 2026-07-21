@@ -1,0 +1,12 @@
+# Claim: default: section and legacy top-level defaultable keys fill unset job
+# keys; explicit job values win.
+image: legacy:1
+default:
+  before_script: [setup]
+  retry: 2
+plain:
+  script: [x]
+override:
+  image: mine:2
+  before_script: [own-setup]
+  script: [y]

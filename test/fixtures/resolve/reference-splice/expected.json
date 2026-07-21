@@ -1,0 +1,153 @@
+{
+  "model": {
+    "stages": [
+      "test"
+    ],
+    "jobs": [
+      {
+        "name": "release",
+        "stage": "test",
+        "needs": null,
+        "startsImmediately": false,
+        "dependencies": null,
+        "when": "on_success",
+        "allowFailure": false,
+        "manual": false,
+        "parallel": null,
+        "trigger": null,
+        "image": null,
+        "services": null,
+        "tags": null,
+        "script": [
+          "rel"
+        ],
+        "beforeScript": null,
+        "afterScript": null,
+        "rules": null,
+        "only": null,
+        "except": null,
+        "artifacts": null,
+        "cache": null,
+        "environment": null,
+        "variables": null,
+        "retry": null,
+        "timeout": null,
+        "coverage": null,
+        "resourceGroup": null,
+        "raw": {
+          "script": [
+            "rel"
+          ]
+        }
+      },
+      {
+        "name": "version",
+        "stage": "test",
+        "needs": null,
+        "startsImmediately": false,
+        "dependencies": null,
+        "when": "on_success",
+        "allowFailure": false,
+        "manual": false,
+        "parallel": null,
+        "trigger": null,
+        "image": null,
+        "services": null,
+        "tags": null,
+        "script": [
+          "ver"
+        ],
+        "beforeScript": null,
+        "afterScript": null,
+        "rules": null,
+        "only": null,
+        "except": null,
+        "artifacts": null,
+        "cache": null,
+        "environment": null,
+        "variables": null,
+        "retry": null,
+        "timeout": null,
+        "coverage": null,
+        "resourceGroup": null,
+        "raw": {
+          "script": [
+            "ver"
+          ]
+        }
+      },
+      {
+        "name": "notes",
+        "stage": "test",
+        "needs": [
+          {
+            "job": "version",
+            "optional": false,
+            "artifacts": true,
+            "external": false
+          },
+          {
+            "job": "release",
+            "optional": false,
+            "artifacts": false,
+            "external": false
+          }
+        ],
+        "startsImmediately": false,
+        "dependencies": null,
+        "when": "on_success",
+        "allowFailure": false,
+        "manual": false,
+        "parallel": null,
+        "trigger": null,
+        "image": null,
+        "services": null,
+        "tags": null,
+        "script": [
+          "prep-a",
+          "prep-b",
+          "publish"
+        ],
+        "beforeScript": null,
+        "afterScript": null,
+        "rules": null,
+        "only": null,
+        "except": null,
+        "artifacts": null,
+        "cache": null,
+        "environment": null,
+        "variables": null,
+        "retry": null,
+        "timeout": "30m",
+        "coverage": null,
+        "resourceGroup": null,
+        "raw": {
+          "script": [
+            "prep-a",
+            "prep-b",
+            "publish"
+          ],
+          "timeout": "30m",
+          "needs": [
+            {
+              "job": "version",
+              "artifacts": true
+            },
+            {
+              "job": "release",
+              "artifacts": false
+            }
+          ]
+        }
+      }
+    ],
+    "templates": [
+      ".setup"
+    ],
+    "warnings": [],
+    "workflow": null
+  },
+  "errors": [],
+  "warnings": [],
+  "unresolved": []
+}
