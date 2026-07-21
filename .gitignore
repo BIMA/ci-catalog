@@ -1,6 +1,7 @@
 node_modules/
 dist/
 pipeline-docs/
+ci-parser-docs/
 .oracle/
 .DS_Store
 .idea/
