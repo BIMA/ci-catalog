@@ -1,6 +1,6 @@
 import { dumpJobYaml } from "./resolve/index.js";
 import { lineageOf } from "./graph.js";
-import { formatCondition } from "./refs.js";
+import { formatCondition } from "./simulate/index.js";
 
 function h(tag, cls, text) {
   const node = document.createElement(tag);

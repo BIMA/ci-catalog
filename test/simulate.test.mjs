@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 
-import { evalIf, jobVerdict, filterModel, REF_CONTEXTS } from "../src/refs.js";
+import { evalIf, jobVerdict, simulate, BUILTIN_SCENARIOS, buildScenarios } from "../src/simulate/index.js";
 import { resolvePipeline } from "../src/resolve/index.js";
 
 const parsePipeline = (text) => {
@@ -10,11 +10,13 @@ const parsePipeline = (text) => {
   return model;
 };
 
-const mr = REF_CONTEXTS.mr;
-const branch = REF_CONTEXTS.branch;
-const def = REF_CONTEXTS.default;
-const tag = REF_CONTEXTS.tag;
-const schedule = REF_CONTEXTS.schedule;
+const mr = BUILTIN_SCENARIOS.mr;
+const branch = BUILTIN_SCENARIOS.branch;
+const def = BUILTIN_SCENARIOS.default;
+const tag = BUILTIN_SCENARIOS.tag;
+const schedule = BUILTIN_SCENARIOS.schedule;
+
+const scenario = (key) => buildScenarios([]).scenarios.find((s) => s.key === key);
 
 // ---- evalIf: three-valued logic ----
 
@@ -120,9 +122,9 @@ test("no rules/only/except → runs everywhere", () => {
   assert.equal(verdict("", tag), "T");
 });
 
-// ---- filterModel ----
+// ---- simulate ----
 
-test("filterModel drops F jobs, keeps U as conditional, filters stages", () => {
+test("simulate drops F jobs, keeps U as conditional, filters stages", () => {
   const m = parsePipeline(`
 stages: [build, deploy]
 build-job:
@@ -139,13 +141,13 @@ deploy-prod:
   rules:
     - if: $KUBECONFIG
 `);
-  const { model, verdicts } = filterModel(m, "tag");
+  const { model, verdicts } = simulate(m, scenario("tag"));
   assert.ok(model.jobs.has("build-job"));
   assert.ok(!model.jobs.has("mr-only"));
   assert.equal(verdicts.get("deploy-prod"), "U");
   assert.deepEqual(model.stages, ["build", "deploy"]);
 
-  const mrView = filterModel(m, "mr");
+  const mrView = simulate(m, scenario("mr"));
   assert.ok(mrView.model.jobs.has("mr-only"));
 });
 
@@ -156,6 +158,6 @@ workflow:
     - if: $CI_PIPELINE_SOURCE == "merge_request_event"
 job: {script: [x]}
 `);
-  assert.equal(filterModel(m, "mr").workflow, "T");
-  assert.equal(filterModel(m, "branch").workflow, "F");
+  assert.equal(simulate(m, scenario("mr")).workflow, "T");
+  assert.equal(simulate(m, scenario("branch")).workflow, "F");
 });

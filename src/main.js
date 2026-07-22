@@ -5,20 +5,25 @@ import { renderDrawer } from "./drawer.js";
 import { fetchProject } from "./gitlab-api.js";
 import { SAMPLE_YAML } from "./sample.js";
 import { starterFiles, starterNames } from "./starters.js";
-import { REF_CONTEXTS, filterModel, contextCounts } from "./refs.js";
+import { buildScenarios, simulate, scenarioCounts } from "./simulate/index.js";
 import { deserializeModel } from "./serialize.js";
 
 const $ = (sel) => document.querySelector(sel);
 
 const state = {
   fullModel: null, // as parsed, all jobs
-  model: null, // current ref-context view of fullModel
+  model: null, // current scenario view of fullModel
   graph: null,
   statuses: null, // Map<jobName, status> when connected to GitLab
   selected: null,
   sourceLabel: "",
-  refContext: "all",
+  scenarioKey: "all",
+  // Built-in scenarios only; a generated catalog replaces this with the
+  // Scenario Profiles committed in the template project.
+  scenarios: buildScenarios([]).scenarios,
 };
+
+const scenarioByKey = (key) => state.scenarios.find((s) => s.key === key) ?? state.scenarios[0];
 
 const view = new DagView($("#canvas"), { onSelect: selectJob });
 
@@ -37,7 +42,7 @@ function applyModel(model, sourceLabel) {
   state.fullModel = model;
   state.selected = null;
   state.sourceLabel = sourceLabel;
-  state.refContext = "all";
+  state.scenarioKey = "all";
   if (sourceLabel !== state.connectedLabel) state.statuses = null;
 
   $("#empty-state").hidden = true;
@@ -45,16 +50,17 @@ function applyModel(model, sourceLabel) {
   const implicitToggle = $("#implicit-toggle");
   implicitToggle.checked = !hasExplicitNeeds ? true : implicitToggle.checked;
 
-  renderRefTabs();
-  applyContext("all", { initial: true });
+  renderScenarioTabs();
+  applyScenario("all", { initial: true });
   renderWarnings();
   closeDrawer();
   $("#source-label").textContent = sourceLabel;
 }
 
-function applyContext(key, { initial = false } = {}) {
-  state.refContext = key;
-  const { model, verdicts, workflow } = filterModel(state.fullModel, key);
+function applyScenario(key, { initial = false } = {}) {
+  state.scenarioKey = key;
+  const scenario = scenarioByKey(key);
+  const { model, verdicts, workflow, assumed } = simulate(state.fullModel, scenario);
   state.model = model;
   state.graph = buildGraph(model);
   if (state.selected && !model.jobs.has(state.selected)) state.selected = null;
@@ -71,11 +77,15 @@ function applyContext(key, { initial = false } = {}) {
 
   const note = $("#workflow-note");
   const msgs = [];
-  if (key !== "all" && model.jobs.size === 0) msgs.push("No jobs run for this ref.");
+  if (key !== "all" && model.jobs.size === 0) msgs.push("No jobs run for this scenario.");
   if (key !== "all" && workflow === "F") {
     msgs.push("workflow: rules block this ref — GitLab would not create this pipeline at all.");
   } else if (key !== "all" && workflow === "U") {
     msgs.push("workflow: rules depend on project variables — this pipeline may not be created.");
+  }
+  if (assumed.length > 0) {
+    const names = assumed.map((a) => `$${a.name}`).join(", ");
+    msgs.push(`Simulated with assumed values for ${names} — these come from the scenario, not from the config.`);
   }
   note.hidden = msgs.length === 0;
   note.textContent = msgs.join(" ");
@@ -85,16 +95,21 @@ function applyContext(key, { initial = false } = {}) {
   });
 }
 
-function renderRefTabs() {
+function renderScenarioTabs() {
   const tabs = $("#ref-tabs");
   tabs.hidden = false;
   tabs.replaceChildren();
-  const counts = contextCounts(state.fullModel);
-  for (const [key, ctx] of Object.entries(REF_CONTEXTS)) {
+  const counts = scenarioCounts(state.fullModel, state.scenarios);
+  for (const scenario of state.scenarios) {
     const btn = document.createElement("button");
-    btn.dataset.ctx = key;
-    btn.append(ctx.label, Object.assign(document.createElement("span"), { className: "tab-count", textContent: counts[key] }));
-    btn.addEventListener("click", () => applyContext(key));
+    btn.dataset.ctx = scenario.key;
+    if (scenario.source === "profile") btn.classList.add("scenario-profile");
+    if (scenario.description) btn.title = scenario.description;
+    btn.append(
+      scenario.label,
+      Object.assign(document.createElement("span"), { className: "tab-count", textContent: counts[scenario.key] })
+    );
+    btn.addEventListener("click", () => applyScenario(scenario.key));
     tabs.appendChild(btn);
   }
 }

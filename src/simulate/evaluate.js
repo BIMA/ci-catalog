@@ -1,111 +1,26 @@
 /**
- * Per-ref pipeline simulation.
+ * The three-valued rule evaluator.
  *
- * Each context ("what kind of ref triggered the pipeline") defines the
- * predefined CI variables it implies. Job `rules` / `only` / `except` and
- * `workflow:` are evaluated against them with three-valued logic:
  *   T  — definitely runs
  *   F  — definitely filtered out
- *   U  — depends on project variables / changes / etc. we can't know ("maybe")
+ *   U  — depends on variables / changes / etc. we can't know ("maybe")
  *
  * Known variables hold a *set* of possible values (the default branch is
  * modeled as {main, master} since templates target both); comparisons use
  * union semantics — the job is shown if any possible value would run it.
  */
 
-const DEFAULT_BRANCHES = ["main", "master"];
-
-function known(...vals) {
-  return { known: true, vals };
-}
-const UNKNOWN = { known: false };
-
-export const REF_CONTEXTS = {
-  all: { label: "All jobs" },
-  mr: {
-    label: "Merge request",
-    kind: "mr",
-    refNames: ["feature/awesome"],
-    vars: {
-      CI_PIPELINE_SOURCE: known("merge_request_event"),
-      CI_COMMIT_BRANCH: known(null),
-      CI_COMMIT_TAG: known(null),
-      CI_COMMIT_REF_NAME: known("feature/awesome"),
-      CI_MERGE_REQUEST_ID: known("1"),
-      CI_MERGE_REQUEST_IID: known("1"),
-      CI_MERGE_REQUEST_SOURCE_BRANCH_NAME: known("feature/awesome"),
-      CI_MERGE_REQUEST_TARGET_BRANCH_NAME: known(...DEFAULT_BRANCHES),
-      CI_OPEN_MERGE_REQUESTS: known("group/project!1"),
-      CI_DEFAULT_BRANCH: known(...DEFAULT_BRANCHES),
-    },
-  },
-  default: {
-    label: "Default branch",
-    kind: "branch",
-    refNames: DEFAULT_BRANCHES,
-    vars: {
-      CI_PIPELINE_SOURCE: known("push"),
-      CI_COMMIT_BRANCH: known(...DEFAULT_BRANCHES),
-      CI_COMMIT_TAG: known(null),
-      CI_COMMIT_REF_NAME: known(...DEFAULT_BRANCHES),
-      CI_MERGE_REQUEST_ID: known(null),
-      CI_OPEN_MERGE_REQUESTS: known(null),
-      CI_DEFAULT_BRANCH: known(...DEFAULT_BRANCHES),
-    },
-  },
-  branch: {
-    label: "Feature branch",
-    kind: "branch",
-    refNames: ["feature/awesome"],
-    vars: {
-      CI_PIPELINE_SOURCE: known("push"),
-      CI_COMMIT_BRANCH: known("feature/awesome"),
-      CI_COMMIT_TAG: known(null),
-      CI_COMMIT_REF_NAME: known("feature/awesome"),
-      CI_MERGE_REQUEST_ID: known(null),
-      CI_OPEN_MERGE_REQUESTS: known(null),
-      CI_DEFAULT_BRANCH: known(...DEFAULT_BRANCHES),
-    },
-  },
-  tag: {
-    label: "Tag",
-    kind: "tag",
-    refNames: ["v1.0.0"],
-    vars: {
-      CI_PIPELINE_SOURCE: known("push"),
-      CI_COMMIT_BRANCH: known(null),
-      CI_COMMIT_TAG: known("v1.0.0"),
-      CI_COMMIT_REF_NAME: known("v1.0.0"),
-      CI_MERGE_REQUEST_ID: known(null),
-      CI_OPEN_MERGE_REQUESTS: known(null),
-      CI_DEFAULT_BRANCH: known(...DEFAULT_BRANCHES),
-    },
-  },
-  schedule: {
-    label: "Schedule",
-    kind: "schedule",
-    refNames: DEFAULT_BRANCHES,
-    vars: {
-      CI_PIPELINE_SOURCE: known("schedule"),
-      CI_COMMIT_BRANCH: known(...DEFAULT_BRANCHES),
-      CI_COMMIT_TAG: known(null),
-      CI_COMMIT_REF_NAME: known(...DEFAULT_BRANCHES),
-      CI_MERGE_REQUEST_ID: known(null),
-      CI_OPEN_MERGE_REQUESTS: known(null),
-      CI_DEFAULT_BRANCH: known(...DEFAULT_BRANCHES),
-    },
-  },
-};
+import { UNKNOWN, known } from "./scenarios.js";
 
 // ---- three-valued logic ----
 
-const and3 = (a, b) => (a === "F" || b === "F" ? "F" : a === "U" || b === "U" ? "U" : "T");
-const or3 = (a, b) => (a === "T" || b === "T" ? "T" : a === "U" || b === "U" ? "U" : "F");
-const not3 = (a) => (a === "T" ? "F" : a === "F" ? "T" : "U");
+export const and3 = (a, b) => (a === "F" || b === "F" ? "F" : a === "U" || b === "U" ? "U" : "T");
+export const or3 = (a, b) => (a === "T" || b === "T" ? "T" : a === "U" || b === "U" ? "U" : "F");
+export const not3 = (a) => (a === "T" ? "F" : a === "F" ? "T" : "U");
 
-// ---- `rules: if:` expression evaluator ----
+// ---- `rules: if:` expression tokenizer ----
 
-function tokenize(src) {
+export function tokenize(src) {
   const tokens = [];
   let i = 0;
   const push = (type, value) => tokens.push({ type, value });
@@ -148,57 +63,6 @@ function tokenize(src) {
     throw new Error(`unexpected character \`${c}\``);
   }
   return tokens;
-}
-
-/**
- * Pretty-print a `rules: if:` expression: one comparison per line, `&&`/`||`
- * trailing, parenthesized groups indented. Falls back to the original
- * (whitespace-collapsed) when the expression doesn't tokenize.
- */
-export function formatCondition(expr) {
-  let tokens;
-  try {
-    tokens = tokenize(String(expr));
-  } catch {
-    return String(expr).replace(/\s+/g, " ").trim();
-  }
-  const tokText = (t) => {
-    switch (t.type) {
-      case "var": return "$" + t.value;
-      case "str": return `'${t.value}'`;
-      case "regex": return `/${t.value.source}/${t.value.flags}`;
-      case "null": return "null";
-      case "op": return t.value;
-      case "and": return "&&";
-      case "or": return "||";
-      default: return "";
-    }
-  };
-  const lines = [];
-  let indent = 0;
-  let cur = "";
-  const flush = () => {
-    if (cur.trim()) lines.push("  ".repeat(indent) + cur.trim());
-    cur = "";
-  };
-  for (const t of tokens) {
-    if (t.type === "lparen") {
-      flush();
-      lines.push("  ".repeat(indent) + "(");
-      indent++;
-    } else if (t.type === "rparen") {
-      flush();
-      indent = Math.max(0, indent - 1);
-      cur = ")";
-    } else if (t.type === "and" || t.type === "or") {
-      cur += (cur ? " " : "") + tokText(t);
-      flush();
-    } else {
-      cur += (cur ? " " : "") + tokText(t);
-    }
-  }
-  flush();
-  return lines.join("\n");
 }
 
 /**
@@ -300,7 +164,7 @@ export function evalIf(expr, vars) {
 
 // ---- rules / only / except → verdict ----
 
-function evalRulesList(rules, ctx) {
+export function evalRulesList(rules, ctx) {
   if (!Array.isArray(rules)) return "U";
   let sawUnknown = false;
   for (const rule of rules) {
@@ -369,7 +233,7 @@ function evalOnlyClause(clause, ctx) {
   return v;
 }
 
-/** Verdict for one job in a context: 'T' | 'F' | 'U'. */
+/** Verdict for one job under one scenario: 'T' | 'F' | 'U'. */
 export function jobVerdict(job, ctx) {
   if (Array.isArray(job.rules)) return evalRulesList(job.rules, ctx);
   const only = evalOnlyClause(job.only, ctx);
@@ -377,41 +241,4 @@ export function jobVerdict(job, ctx) {
   let v = only ?? "T";
   if (except !== null) v = and3(v, not3(except));
   return v;
-}
-
-/**
- * Filter a parsed pipeline model down to one ref context.
- * Returns { model, verdicts: Map<name,'T'|'U'>, workflow: 'T'|'F'|'U' }.
- */
-export function filterModel(model, ctxKey) {
-  const ctx = REF_CONTEXTS[ctxKey];
-  if (!ctx || ctxKey === "all") {
-    return { model, verdicts: new Map(), workflow: "T" };
-  }
-  const verdicts = new Map();
-  const jobs = new Map();
-  for (const [name, job] of model.jobs) {
-    const v = jobVerdict(job, ctx);
-    if (v === "F") continue;
-    verdicts.set(name, v);
-    jobs.set(name, job);
-  }
-  const stages = model.stages.filter((s) => [...jobs.values()].some((j) => j.stage === s));
-  const workflow = Array.isArray(model.workflow?.rules)
-    ? evalRulesList(model.workflow.rules, ctx)
-    : "T";
-  return {
-    model: { ...model, stages, jobs, warnings: [] },
-    verdicts,
-    workflow,
-  };
-}
-
-/** Per-context job counts for tab labels. */
-export function contextCounts(model) {
-  const counts = {};
-  for (const key of Object.keys(REF_CONTEXTS)) {
-    counts[key] = key === "all" ? model.jobs.size : filterModel(model, key).model.jobs.size;
-  }
-  return counts;
 }
