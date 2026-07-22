@@ -342,10 +342,20 @@ async function initCatalog() {
   }
   if (!manifest || manifest.schemaVersion !== 1 || !Array.isArray(manifest.pipelines)) return false;
 
+  // Scenario Profiles committed in the template project replace the built-in
+  // scenario list (the generator already merged the built-ins into it).
+  if (Array.isArray(manifest.scenarios) && manifest.scenarios.length > 0) {
+    state.scenarios = manifest.scenarios;
+  }
+
   const section = $("#catalog-section");
   section.hidden = false;
   const when = new Date(manifest.generatedAt);
-  $("#catalog-meta").textContent = `${manifest.project} · ${manifest.pipelines.length} pipelines · generated ${when.toLocaleString()}`;
+  const profiles = state.scenarios.filter((s) => s.source === "profile").length;
+  $("#catalog-meta").textContent =
+    `${manifest.project} · ${manifest.pipelines.length} pipelines` +
+    (profiles > 0 ? ` · ${profiles} scenario profile${profiles === 1 ? "" : "s"}` : "") +
+    ` · generated ${when.toLocaleString()}`;
 
   const select = $("#catalog-select");
   select.replaceChildren();

@@ -45,6 +45,7 @@
     "warnings": [
       "include (project grp/templates file /ci/base.yml) not resolved — jobs from it are missing."
     ],
+    "variables": null,
     "workflow": null
   },
   "errors": [],

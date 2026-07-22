@@ -10,12 +10,43 @@
     "generatedAt": { "type": "string", "format": "date-time" },
     "project": { "type": "string", "description": "basename of the project directory" },
     "fileCount": { "type": "integer", "description": "YAML files seen, local + fetched includes" },
+    "scenarios": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/scenario" },
+      "description": "built-in ref contexts plus any Scenario Profiles declared in ci-catalog.yml; absent in manifests generated before profiles existed, in which case the viewer falls back to its built-ins"
+    },
     "pipelines": {
       "type": "array",
       "items": { "$ref": "#/$defs/pipeline" }
     }
   },
   "$defs": {
+    "scenario": {
+      "type": "object",
+      "required": ["key", "label", "source"],
+      "properties": {
+        "key": { "type": "string", "description": "tab identity; a profile may reuse a built-in key to replace it" },
+        "label": { "type": "string" },
+        "description": { "type": "string", "description": "shown as the tab tooltip — onboarding documentation for the scenario" },
+        "source": { "enum": ["builtin", "profile"], "description": "builtin = shipped ref context; profile = authored in the template project" },
+        "path": { "type": "string", "description": "profile file the scenario came from" },
+        "extends": { "type": ["string", "null"], "description": "scenario key this profile built on" },
+        "kind": { "enum": ["mr", "branch", "tag", "schedule"], "description": "drives only:/except: keyword matching" },
+        "refNames": { "type": "array", "items": { "type": "string" } },
+        "vars": {
+          "type": "object",
+          "description": "variable name → { known: true, vals: [...] }; absent entries evaluate as unknown (U)",
+          "additionalProperties": {
+            "type": "object",
+            "required": ["known"],
+            "properties": {
+              "known": { "type": "boolean" },
+              "vals": { "type": "array" }
+            }
+          }
+        }
+      }
+    },
     "pipeline": {
       "type": "object",
       "required": ["name", "path"],
@@ -53,9 +84,13 @@
           "description": "hidden `.job` names — extend sources, never runnable"
         },
         "warnings": { "type": "array", "items": { "type": "string" } },
+        "variables": {
+          "type": ["object", "null"],
+          "description": "resolved top-level `variables:` — repo-defined values, used to classify Variable Provenance"
+        },
         "workflow": {
           "type": ["object", "null"],
-          "description": "raw `workflow:` block; rules evaluated client-side per ref context (src/refs.js)"
+          "description": "raw `workflow:` block; rules evaluated client-side per scenario (src/simulate/)"
         }
       }
     },

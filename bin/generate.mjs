@@ -23,6 +23,14 @@ import { execFileSync } from "node:child_process";
 
 import { resolvePipeline } from "../src/resolve/index.js";
 import { serializeModel } from "../src/serialize.js";
+import { buildScenarios } from "../src/simulate/index.js";
+import {
+  CATALOG_CONFIG_FILE,
+  parseCatalogConfig,
+  scenarioPaths,
+  scenarioDocs,
+  selectEntrypoints,
+} from "../src/catalog-config.js";
 
 const SCHEMA_VERSION = 1;
 const IGNORE_DIRS = new Set(["node_modules", ".git", ".idea", "dist", "pipeline-docs"]);
@@ -185,12 +193,32 @@ async function main() {
   }
 
   const files = walkYaml(projectDir);
-  const entrypoints = Object.keys(files)
-    .filter((p) => !p.includes("/"))
-    .sort();
+
+  // Catalog Config (optional): overrides entrypoint discovery and declares
+  // which files are Scenario Profiles.
+  const configWarnings = [];
+  let config = { entrypoints: null, scenarios: null };
+  if (CATALOG_CONFIG_FILE in files) {
+    const parsed = parseCatalogConfig(files[CATALOG_CONFIG_FILE]);
+    config = parsed.config;
+    configWarnings.push(...parsed.warnings);
+    console.log(`Using ${CATALOG_CONFIG_FILE}`);
+  }
+
+  const profilePaths = scenarioPaths(files, config);
+  const { docs, warnings: docWarnings } = scenarioDocs(files, profilePaths);
+  const { scenarios, warnings: scenarioWarnings } = buildScenarios(docs);
+  configWarnings.push(...docWarnings, ...scenarioWarnings);
+  for (const w of configWarnings) console.warn(`  ! ${w}`);
+
+  const entrypoints = selectEntrypoints(files, config, { scenarios: profilePaths });
 
   if (entrypoints.length === 0) {
-    console.error(`No root-level *.yml files found in ${projectDir}`);
+    console.error(
+      config.entrypoints
+        ? `No files in ${projectDir} matched the \`entrypoints\` in ${CATALOG_CONFIG_FILE}`
+        : `No root-level *.yml files found in ${projectDir}`
+    );
     process.exit(1);
   }
 
@@ -242,6 +270,7 @@ async function main() {
     generatedAt: new Date().toISOString(),
     project: basename(projectDir.replace(/[/\\]+$/, "")) || "project",
     fileCount: Object.keys(files).length,
+    scenarios,
     pipelines,
   };
 
@@ -263,7 +292,11 @@ async function main() {
 
   const ok = pipelines.filter((p) => !p.error).length;
   const failed = pipelines.length - ok;
+  const profileCount = scenarios.filter((s) => s.source === "profile").length;
   console.log(`\n${manifest.project}: ${ok} pipeline${ok === 1 ? "" : "s"} parsed${failed ? `, ${failed} failed` : ""} (${manifest.fileCount} yml files scanned)`);
+  if (profileCount > 0) {
+    console.log(`  ${profileCount} scenario profile${profileCount === 1 ? "" : "s"}: ${scenarios.filter((s) => s.source === "profile").map((s) => s.key).join(", ")}`);
+  }
   for (const p of pipelines) {
     console.log(
       p.error ? `  ✗ ${p.path} — ${p.error}` : `  ✓ ${p.path.padEnd(28)} ${p.jobCount} jobs · ${p.stageCount} stages${p.warningCount ? ` · ${p.warningCount} notes` : ""}`

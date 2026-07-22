@@ -198,6 +198,7 @@
     "warnings": [
       "Stage `undeclared` is used by a job but not declared in `stages:`."
     ],
+    "variables": null,
     "workflow": null
   },
   "errors": [],

@@ -9,6 +9,7 @@ export function serializeModel(model) {
     jobs: [...model.jobs.values()],
     templates: model.templates,
     warnings: model.warnings,
+    variables: model.variables ?? null,
     workflow: model.workflow ?? null,
   };
 }
@@ -19,6 +20,7 @@ export function deserializeModel(obj) {
     jobs: new Map((obj.jobs ?? []).map((j) => [j.name, j])),
     templates: obj.templates ?? [],
     warnings: obj.warnings ?? [],
+    variables: obj.variables ?? null,
     workflow: obj.workflow ?? null,
   };
 }

@@ -69,8 +69,7 @@ export function assumedVariables(model, scenario) {
   for (const job of model.jobs.values()) {
     for (const name of referencedVariables(job)) {
       if (seen.has(name)) continue;
-      const provenance = classifyVariable(name, { repoVars, scenario });
-      if (provenance === "scenario" || (provenance === "external" && scenario.vars?.[name])) {
+      if (classifyVariable(name, { repoVars, scenario }) === "scenario") {
         seen.set(name, { name, provenance: "scenario" });
       }
     }

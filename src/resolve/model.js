@@ -187,7 +187,13 @@ export function buildModel(doc, warnings) {
     }
   }
 
-  return { stages, jobs, templates, workflow: isObject(doc.workflow) ? doc.workflow : null };
+  return {
+    stages,
+    jobs,
+    templates,
+    variables: isObject(doc.variables) ? doc.variables : null,
+    workflow: isObject(doc.workflow) ? doc.workflow : null,
+  };
 }
 
 export function dumpJobYaml(job) {

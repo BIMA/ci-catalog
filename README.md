@@ -78,6 +78,55 @@ Options: `-o <dir>` output directory (default `pipeline-docs`),
 `--gitlab-url <url>`, `--offline`, `--build`/`--no-build` (force/skip
 rebuilding the viewer — the npm package ships a prebuilt one).
 
+### `ci-catalog.yml` (optional)
+
+Drop a `ci-catalog.yml` at the template project root to override entrypoint
+discovery and declare Scenario Profiles:
+
+```yaml
+entrypoints:            # default: root-level *.yml
+  - "*.yml"
+  - "templates/**/*.yml"
+scenarios:              # a directory, or individual files
+  - scenarios/
+```
+
+`*` matches within a path segment, `**/` spans directories. The config file
+itself and any declared Scenario Profiles are never treated as pipelines.
+
+### Scenario Profiles
+
+Job rules routinely gate on variables that only exist in GitLab's project or
+group settings — `deploy-prod` running only when `$KUBECONFIG` and
+`$CLUSTER_NAME` are set. A local parser can't see those, so by default such
+jobs are drawn dashed as "conditional".
+
+A Scenario Profile is a named set of assumed values, committed next to the
+templates, so the team can *see* what a given configuration produces:
+
+```yaml
+# scenarios/prod-deploy.yml
+name: prod-deploy
+label: Prod deploy
+description: Default branch with the production cluster credentials configured.
+extends: default        # start from a built-in context (or an earlier profile)
+variables:
+  KUBECONFIG: /etc/k8s/prod.conf
+  CLUSTER_NAME: prod-id-1
+  DEPLOY_TOKEN: null    # explicitly unset, as opposed to unknown
+```
+
+Each profile becomes a tab next to the built-in ref contexts (marked with a
+dot), and its `description` is the tab's tooltip — so the committed scenarios
+double as onboarding documentation for how the pipeline actually behaves.
+A profile reusing a built-in key (`default`, `tag`, …) replaces it, which is
+how you retune a context to your project's branch conventions.
+
+Because the values are assumptions rather than facts, a simulation running
+under a profile says so: the banner names exactly which variables came from
+the scenario instead of from the config. Variables GitLab predefines and
+variables the pipeline defines itself are never counted as assumptions.
+
 ## Correctness
 
 `npm test` runs the parser/evaluator suite (extends merge semantics,
@@ -152,7 +201,8 @@ npm run dev
 ## Ref contexts
 
 Tabs above the canvas simulate which jobs run per ref: **All jobs · Merge
-request · Default branch · Feature branch · Tag · Schedule**. Job `rules:if`,
+request · Default branch · Feature branch · Tag · Schedule**, plus any
+[Scenario Profiles](#scenario-profiles) the project commits. Job `rules:if`,
 `only`/`except` (refs + variables) and `workflow:` are evaluated with
 three-valued logic against each context's predefined CI variables. Jobs whose
 conditions depend on project variables (or `changes:`/`exists:`) are kept and

@@ -50,13 +50,13 @@ export function referencedVariables(job) {
  * `scenario` is the active scenario (or null for provenance without one).
  */
 export function classifyVariable(name, { repoVars = new Set(), scenario = null } = {}) {
-  if (scenario?.source === "profile" && scenario.vars?.[name]) {
-    // A profile may restate a predefined variable; the profile is the source
-    // of the value being simulated, so it wins for provenance purposes.
-    return "scenario";
-  }
+  // Predefined first: a profile that restates CI_COMMIT_BRANCH is modelling a
+  // GitLab-provided value, not inventing one, so it stays "predefined".
   if (MODELLED.has(name) || name.startsWith("CI_") || name === "GITLAB_CI") return "predefined";
   if (repoVars.has(name)) return "repo";
+  // Anything left is invisible to a local parser — unless a profile supplies
+  // it, in which case the profile is the (assumed) source.
+  if (scenario?.vars?.[name]) return "scenario";
   return "external";
 }
 

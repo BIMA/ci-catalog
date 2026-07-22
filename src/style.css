@@ -391,6 +391,17 @@ body {
   opacity: 0.65;
 }
 
+/* Scenario Profiles come from the project's own ci-catalog.yml, so mark them
+   apart from the built-in ref contexts. */
+#ref-tabs button.scenario-profile::before {
+  content: "";
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--accent, #e05d44);
+  flex: none;
+}
+
 #workflow-note {
   position: absolute;
   top: 56px;

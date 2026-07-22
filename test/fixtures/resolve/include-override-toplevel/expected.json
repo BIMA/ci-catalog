@@ -44,6 +44,10 @@
     ],
     "templates": [],
     "warnings": [],
+    "variables": {
+      "ENV": "from-main",
+      "REGION": "eu"
+    },
     "workflow": null
   },
   "errors": [],
